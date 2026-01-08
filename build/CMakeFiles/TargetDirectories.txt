@@ -1,0 +1,7 @@
+/home/sof/dev/forks/hyfocus/build/CMakeFiles/hyfocus.dir
+/home/sof/dev/forks/hyfocus/build/CMakeFiles/edit_cache.dir
+/home/sof/dev/forks/hyfocus/build/CMakeFiles/rebuild_cache.dir
+/home/sof/dev/forks/hyfocus/build/CMakeFiles/list_install_components.dir
+/home/sof/dev/forks/hyfocus/build/CMakeFiles/install.dir
+/home/sof/dev/forks/hyfocus/build/CMakeFiles/install/local.dir
+/home/sof/dev/forks/hyfocus/build/CMakeFiles/install/strip.dir

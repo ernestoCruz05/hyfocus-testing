@@ -1,0 +1,44 @@
+[
+{
+  "directory": "/home/sof/dev/forks/hyfocus/build",
+  "command": "/usr/bin/c++ -Dhyfocus_EXPORTS -I/var/cache/hyprpm/sof/headersRoot/include -I/var/cache/hyprpm/sof/headersRoot/include/hyprland/protocols -I/var/cache/hyprpm/sof/headersRoot/include/hyprland -I/usr/include/libdrm -I/usr/include/cairo -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/pixman-1 -I/home/sof/dev/forks/hyfocus/src -O3 -DNDEBUG -std=gnu++23 -fPIC -Wall -Wextra -fPIC -o CMakeFiles/hyfocus.dir/src/main.cpp.o -c /home/sof/dev/forks/hyfocus/src/main.cpp",
+  "file": "/home/sof/dev/forks/hyfocus/src/main.cpp",
+  "output": "CMakeFiles/hyfocus.dir/src/main.cpp.o"
+},
+{
+  "directory": "/home/sof/dev/forks/hyfocus/build",
+  "command": "/usr/bin/c++ -Dhyfocus_EXPORTS -I/var/cache/hyprpm/sof/headersRoot/include -I/var/cache/hyprpm/sof/headersRoot/include/hyprland/protocols -I/var/cache/hyprpm/sof/headersRoot/include/hyprland -I/usr/include/libdrm -I/usr/include/cairo -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/pixman-1 -I/home/sof/dev/forks/hyfocus/src -O3 -DNDEBUG -std=gnu++23 -fPIC -Wall -Wextra -fPIC -o CMakeFiles/hyfocus.dir/src/dispatchers.cpp.o -c /home/sof/dev/forks/hyfocus/src/dispatchers.cpp",
+  "file": "/home/sof/dev/forks/hyfocus/src/dispatchers.cpp",
+  "output": "CMakeFiles/hyfocus.dir/src/dispatchers.cpp.o"
+},
+{
+  "directory": "/home/sof/dev/forks/hyfocus/build",
+  "command": "/usr/bin/c++ -Dhyfocus_EXPORTS -I/var/cache/hyprpm/sof/headersRoot/include -I/var/cache/hyprpm/sof/headersRoot/include/hyprland/protocols -I/var/cache/hyprpm/sof/headersRoot/include/hyprland -I/usr/include/libdrm -I/usr/include/cairo -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/pixman-1 -I/home/sof/dev/forks/hyfocus/src -O3 -DNDEBUG -std=gnu++23 -fPIC -Wall -Wextra -fPIC -o CMakeFiles/hyfocus.dir/src/eventhooks.cpp.o -c /home/sof/dev/forks/hyfocus/src/eventhooks.cpp",
+  "file": "/home/sof/dev/forks/hyfocus/src/eventhooks.cpp",
+  "output": "CMakeFiles/hyfocus.dir/src/eventhooks.cpp.o"
+},
+{
+  "directory": "/home/sof/dev/forks/hyfocus/build",
+  "command": "/usr/bin/c++ -Dhyfocus_EXPORTS -I/var/cache/hyprpm/sof/headersRoot/include -I/var/cache/hyprpm/sof/headersRoot/include/hyprland/protocols -I/var/cache/hyprpm/sof/headersRoot/include/hyprland -I/usr/include/libdrm -I/usr/include/cairo -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/pixman-1 -I/home/sof/dev/forks/hyfocus/src -O3 -DNDEBUG -std=gnu++23 -fPIC -Wall -Wextra -fPIC -o CMakeFiles/hyfocus.dir/src/FocusTimer.cpp.o -c /home/sof/dev/forks/hyfocus/src/FocusTimer.cpp",
+  "file": "/home/sof/dev/forks/hyfocus/src/FocusTimer.cpp",
+  "output": "CMakeFiles/hyfocus.dir/src/FocusTimer.cpp.o"
+},
+{
+  "directory": "/home/sof/dev/forks/hyfocus/build",
+  "command": "/usr/bin/c++ -Dhyfocus_EXPORTS -I/var/cache/hyprpm/sof/headersRoot/include -I/var/cache/hyprpm/sof/headersRoot/include/hyprland/protocols -I/var/cache/hyprpm/sof/headersRoot/include/hyprland -I/usr/include/libdrm -I/usr/include/cairo -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/pixman-1 -I/home/sof/dev/forks/hyfocus/src -O3 -DNDEBUG -std=gnu++23 -fPIC -Wall -Wextra -fPIC -o CMakeFiles/hyfocus.dir/src/WorkspaceEnforcer.cpp.o -c /home/sof/dev/forks/hyfocus/src/WorkspaceEnforcer.cpp",
+  "file": "/home/sof/dev/forks/hyfocus/src/WorkspaceEnforcer.cpp",
+  "output": "CMakeFiles/hyfocus.dir/src/WorkspaceEnforcer.cpp.o"
+},
+{
+  "directory": "/home/sof/dev/forks/hyfocus/build",
+  "command": "/usr/bin/c++ -Dhyfocus_EXPORTS -I/var/cache/hyprpm/sof/headersRoot/include -I/var/cache/hyprpm/sof/headersRoot/include/hyprland/protocols -I/var/cache/hyprpm/sof/headersRoot/include/hyprland -I/usr/include/libdrm -I/usr/include/cairo -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/pixman-1 -I/home/sof/dev/forks/hyfocus/src -O3 -DNDEBUG -std=gnu++23 -fPIC -Wall -Wextra -fPIC -o CMakeFiles/hyfocus.dir/src/WindowShake.cpp.o -c /home/sof/dev/forks/hyfocus/src/WindowShake.cpp",
+  "file": "/home/sof/dev/forks/hyfocus/src/WindowShake.cpp",
+  "output": "CMakeFiles/hyfocus.dir/src/WindowShake.cpp.o"
+},
+{
+  "directory": "/home/sof/dev/forks/hyfocus/build",
+  "command": "/usr/bin/c++ -Dhyfocus_EXPORTS -I/var/cache/hyprpm/sof/headersRoot/include -I/var/cache/hyprpm/sof/headersRoot/include/hyprland/protocols -I/var/cache/hyprpm/sof/headersRoot/include/hyprland -I/usr/include/libdrm -I/usr/include/cairo -I/usr/include/freetype2 -I/usr/include/libpng16 -I/usr/include/pixman-1 -I/home/sof/dev/forks/hyfocus/src -O3 -DNDEBUG -std=gnu++23 -fPIC -Wall -Wextra -fPIC -o CMakeFiles/hyfocus.dir/src/ExitChallenge.cpp.o -c /home/sof/dev/forks/hyfocus/src/ExitChallenge.cpp",
+  "file": "/home/sof/dev/forks/hyfocus/src/ExitChallenge.cpp",
+  "output": "CMakeFiles/hyfocus.dir/src/ExitChallenge.cpp.o"
+}
+]

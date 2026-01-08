@@ -1,0 +1,358 @@
+/**
+ * @file dispatchers.cpp
+ * @brief Implementation of HyFocus dispatcher commands.
+ * 
+ * This file contains the implementation of all user-facing commands
+ * for controlling the focus enforcement system. Commands can be
+ * triggered via keybinds or hyprctl.
+ */
+#include "dispatchers.hpp"
+#include <sstream>
+
+/**
+ * @brief Parse a comma-separated list of workspace IDs.
+ * @param input String like "3,5,7" or "3, 5, 7"
+ * @return Vector of parsed workspace IDs
+ */
+static std::vector<WORKSPACEID> parseWorkspaceList(const std::string& input) {
+    std::vector<WORKSPACEID> result;
+    std::stringstream ss(input);
+    std::string token;
+    
+    while (std::getline(ss, token, ',')) {
+        // Trim whitespace
+        size_t start = token.find_first_not_of(" \t");
+        size_t end = token.find_last_not_of(" \t");
+        
+        if (start != std::string::npos && end != std::string::npos) {
+            token = token.substr(start, end - start + 1);
+            
+            try {
+                WORKSPACEID id = std::stoi(token);
+                result.push_back(id);
+            } catch (const std::exception& e) {
+                FE_WARN("Failed to parse workspace ID '{}': {}", token, e.what());
+            }
+        }
+    }
+    
+    return result;
+}
+
+/**
+ * @brief Format remaining seconds as MM:SS string.
+ */
+static std::string formatTime(int seconds) {
+    int mins = seconds / 60;
+    int secs = seconds % 60;
+    
+    std::ostringstream oss;
+    oss << std::setfill('0') << std::setw(2) << mins
+        << ":" << std::setfill('0') << std::setw(2) << secs;
+    return oss.str();
+}
+
+void dispatch_startSession(std::string args) {
+    FE_INFO("Starting focus session with args: '{}'", args);
+    
+    // Check if already running
+    if (g_fe_is_session_active.load()) {
+        showWarning("Focus session already running! Stop it first.");
+        return;
+    }
+    
+    // Parse allowed workspaces
+    std::vector<WORKSPACEID> allowedWorkspaces;
+    
+    if (args.empty()) {
+        // Default to current workspace only
+        auto pMonitor = Desktop::focusState()->monitor();
+        if (pMonitor && pMonitor->m_activeWorkspace) {
+            allowedWorkspaces.push_back(pMonitor->m_activeWorkspace->m_id);
+            FE_INFO("No workspaces specified, using current: {}", 
+                    pMonitor->m_activeWorkspace->m_id);
+        }
+    } else {
+        allowedWorkspaces = parseWorkspaceList(args);
+    }
+    
+    if (allowedWorkspaces.empty()) {
+        showError("No valid workspaces specified!");
+        return;
+    }
+    
+    // Configure the enforcer
+    g_fe_enforcer->setAllowedWorkspaces(allowedWorkspaces);
+    
+    // Store current workspace as last valid
+    auto pMonitor = Desktop::focusState()->monitor();
+    if (pMonitor && pMonitor->m_activeWorkspace) {
+        g_fe_enforcer->setLastValidWorkspace(pMonitor->m_activeWorkspace->m_id);
+    }
+    
+    // Configure and start the timer
+    g_fe_timer->configure(g_fe_total_duration, g_fe_work_interval, g_fe_break_interval);
+    
+    // Set up callbacks
+    g_fe_timer->setOnWorkStart([]() {
+        g_fe_is_break_time = false;
+        showNotification("Focus time! Stay on task.", {0.2, 0.6, 1.0, 1.0});
+    });
+    
+    g_fe_timer->setOnBreakStart([]() {
+        g_fe_is_break_time = true;
+        showNotification("Break time! Relax for a moment.", {0.2, 0.8, 0.2, 1.0});
+    });
+    
+    g_fe_timer->setOnSessionComplete([]() {
+        g_fe_is_session_active = false;
+        g_fe_is_break_time = false;
+        showNotification("Focus session complete! Great work!", {1.0, 0.8, 0.0, 1.0}, 10000);
+    });
+    
+    // Start!
+    if (g_fe_timer->start()) {
+        g_fe_is_session_active = true;
+        
+        // Build workspace list for notification
+        std::string wsStr;
+        for (auto id : allowedWorkspaces) {
+            if (!wsStr.empty()) wsStr += ", ";
+            wsStr += std::to_string(id);
+        }
+        
+        showNotification("Focus session started! Allowed workspaces: " + wsStr);
+    } else {
+        showError("Failed to start focus session!");
+    }
+}
+
+void dispatch_stopSession(std::string args) {
+    (void)args;  // Unused
+    
+    if (!g_fe_is_session_active.load()) {
+        showWarning("No focus session is running.");
+        return;
+    }
+    
+    // Check if exit challenge is enabled and not already active
+    if (g_fe_exitChallenge && g_fe_exitChallenge->isEnabled()) {
+        if (!g_fe_exitChallenge->isChallengeActive()) {
+            // Start the challenge
+            std::string prompt = g_fe_exitChallenge->initiateChallenge();
+            showWarning(prompt);
+            FE_INFO("Exit challenge initiated");
+            return;  // Don't stop yet, wait for confirmation
+        } else {
+            // Challenge already active, remind user
+            showWarning("Complete the challenge first! Use: hyfocus:confirm <answer>");
+            return;
+        }
+    }
+    
+    // No challenge or challenge disabled - stop immediately
+    g_fe_timer->stop();
+    g_fe_is_session_active = false;
+    g_fe_is_break_time = false;
+    
+    int elapsed = g_fe_timer->getElapsedSeconds();
+    showNotification("Focus session stopped. Total time: " + formatTime(elapsed));
+}
+
+void dispatch_pauseSession(std::string args) {
+    (void)args;
+    
+    if (!g_fe_is_session_active.load()) {
+        showWarning("No focus session is running.");
+        return;
+    }
+    
+    g_fe_timer->pause();
+    showNotification("Focus session paused.", {1.0, 0.7, 0.0, 1.0});
+}
+
+void dispatch_resumeSession(std::string args) {
+    (void)args;
+    
+    if (g_fe_timer->getState() != TimerState::Paused) {
+        showWarning("Session is not paused.");
+        return;
+    }
+    
+    g_fe_timer->resume();
+    showNotification("Focus session resumed!");
+}
+
+void dispatch_toggleSession(std::string args) {
+    if (g_fe_is_session_active.load()) {
+        dispatch_stopSession("");
+    } else {
+        dispatch_startSession(args);
+    }
+}
+
+void dispatch_allowWorkspace(std::string args) {
+    if (args.empty()) {
+        showError("Please specify a workspace ID.");
+        return;
+    }
+    
+    try {
+        WORKSPACEID id = std::stoi(args);
+        g_fe_enforcer->addAllowedWorkspace(id);
+        showNotification("Workspace " + std::to_string(id) + " added to allowed list.");
+    } catch (const std::exception& e) {
+        showError("Invalid workspace ID: " + args);
+    }
+}
+
+void dispatch_disallowWorkspace(std::string args) {
+    if (args.empty()) {
+        showError("Please specify a workspace ID.");
+        return;
+    }
+    
+    try {
+        WORKSPACEID id = std::stoi(args);
+        g_fe_enforcer->removeAllowedWorkspace(id);
+        showNotification("Workspace " + std::to_string(id) + " removed from allowed list.");
+    } catch (const std::exception& e) {
+        showError("Invalid workspace ID: " + args);
+    }
+}
+
+void dispatch_addException(std::string args) {
+    if (args.empty()) {
+        showError("Please specify a window class.");
+        return;
+    }
+    
+    g_fe_enforcer->addExceptionClass(args);
+    showNotification("Window class '" + args + "' added to exceptions.");
+}
+
+void dispatch_showStatus(std::string args) {
+    (void)args;
+    
+    std::ostringstream status;
+    
+    if (!g_fe_is_session_active.load()) {
+        status << "No active focus session.";
+    } else {
+        auto state = g_fe_timer->getState();
+        int remaining = g_fe_timer->getRemainingSeconds();
+        int elapsed = g_fe_timer->getElapsedSeconds();
+        
+        status << "Session: ";
+        
+        switch (state) {
+            case TimerState::Working:
+                status << "WORKING";
+                break;
+            case TimerState::Break:
+                status << "BREAK";
+                break;
+            case TimerState::Paused:
+                status << "PAUSED";
+                break;
+            default:
+                status << "UNKNOWN";
+        }
+        
+        status << " | Remaining: " << formatTime(remaining);
+        status << " | Elapsed: " << formatTime(elapsed);
+        
+        // Add allowed workspaces
+        auto allowed = g_fe_enforcer->getAllowedWorkspaces();
+        status << " | Workspaces: ";
+        for (size_t i = 0; i < allowed.size(); i++) {
+            if (i > 0) status << ", ";
+            status << allowed[i];
+        }
+    }
+    
+    showNotification(status.str(), {0.5, 0.7, 1.0, 1.0}, 5000);
+    FE_INFO("Status: {}", status.str());
+}
+
+void dispatch_confirmStop(std::string args) {
+    if (!g_fe_exitChallenge) {
+        showError("Exit challenge system not initialized.");
+        return;
+    }
+    
+    if (!g_fe_exitChallenge->isChallengeActive()) {
+        showWarning("No active challenge. Use hyfocus:stop first.");
+        return;
+    }
+    
+    if (args.empty()) {
+        showWarning("Please provide an answer: hyfocus:confirm <answer>");
+        return;
+    }
+    
+    bool passed = g_fe_exitChallenge->validateAnswer(args);
+    
+    if (passed) {
+        // Challenge passed! Actually stop the session now
+        g_fe_timer->stop();
+        g_fe_is_session_active = false;
+        g_fe_is_break_time = false;
+        
+        int elapsed = g_fe_timer->getElapsedSeconds();
+        showNotification("Challenge passed! Session stopped. Total time: " + formatTime(elapsed));
+    } else {
+        // Check if it's a countdown that needs more confirmations
+        if (g_fe_exitChallenge->getChallengeType() == ChallengeType::Countdown) {
+            int remaining = g_fe_exitChallenge->getRemainingAttempts();
+            if (remaining > 0) {
+                showWarning("Keep going! " + std::to_string(remaining) + " more confirmations needed.");
+                return;
+            }
+        }
+        
+        // Wrong answer
+        showError("Wrong answer! " + g_fe_exitChallenge->getHint());
+    }
+}
+
+void dispatch_allowApp(std::string args) {
+    if (args.empty()) {
+        showError("Please specify an app name/command.");
+        return;
+    }
+    
+    g_fe_spawn_whitelist.insert(args);
+    showNotification("App '" + args + "' added to spawn whitelist.");
+    FE_INFO("Added app to spawn whitelist: {}", args);
+}
+
+void dispatch_disallowApp(std::string args) {
+    if (args.empty()) {
+        showError("Please specify an app name/command.");
+        return;
+    }
+    
+    g_fe_spawn_whitelist.erase(args);
+    showNotification("App '" + args + "' removed from spawn whitelist.");
+    FE_INFO("Removed app from spawn whitelist: {}", args);
+}
+
+void registerDispatchers() {
+    FE_INFO("Registering dispatchers...");
+    
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:start", dispatch_startSession);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:stop", dispatch_stopSession);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:pause", dispatch_pauseSession);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:resume", dispatch_resumeSession);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:toggle", dispatch_toggleSession);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:allow", dispatch_allowWorkspace);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:disallow", dispatch_disallowWorkspace);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:except", dispatch_addException);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:status", dispatch_showStatus);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:confirm", dispatch_confirmStop);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:allowapp", dispatch_allowApp);
+    HyprlandAPI::addDispatcher(PHANDLE, "hyfocus:disallowapp", dispatch_disallowApp);
+    
+    FE_INFO("Dispatchers registered successfully");
+}
