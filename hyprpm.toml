@@ -6,7 +6,7 @@ commit_pins = []
 [hyfocus]
 description = "A Pomodoro focus enforcement plugin that locks workspaces and blocks app launches during focus sessions"
 authors = ["faky (github.com/ernestoCruz05)"]
-output = "libhyfocus.so"
+output = "build/libhyfocus.so"
 build = [
     "cmake -DCMAKE_BUILD_TYPE=Release -B build",
     "cmake --build build",
