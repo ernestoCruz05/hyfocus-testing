@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/sof/dev/forks/hyfocus/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
