@@ -7,6 +7,7 @@
  * triggered via keybinds or hyprctl.
  */
 #include "dispatchers.hpp"
+#include "eventhooks.hpp"
 #include <sstream>
 
 /**
@@ -29,6 +30,10 @@ static std::vector<WORKSPACEID> parseWorkspaceList(const std::string& input) {
             
             try {
                 WORKSPACEID id = std::stoi(token);
+                if (id < 1) {
+                    FE_WARN("Invalid workspace ID '{}': must be >= 1", token);
+                    continue;
+                }
                 result.push_back(id);
             } catch (const std::exception& e) {
                 FE_WARN("Failed to parse workspace ID '{}': {}", token, e.what());
@@ -66,11 +71,16 @@ void dispatch_startSession(std::string args) {
     
     if (args.empty()) {
         // Default to current workspace only
-        auto pMonitor = Desktop::focusState()->monitor();
-        if (pMonitor && pMonitor->m_activeWorkspace) {
-            allowedWorkspaces.push_back(pMonitor->m_activeWorkspace->m_id);
-            FE_INFO("No workspaces specified, using current: {}", 
-                    pMonitor->m_activeWorkspace->m_id);
+        auto focusState = Desktop::focusState();
+        if (!focusState) {
+            FE_WARN("focusState is null, cannot determine current workspace");
+        } else {
+            auto pMonitor = focusState->monitor();
+            if (pMonitor && pMonitor->m_activeWorkspace) {
+                allowedWorkspaces.push_back(pMonitor->m_activeWorkspace->m_id);
+                FE_INFO("No workspaces specified, using current: {}", 
+                        pMonitor->m_activeWorkspace->m_id);
+            }
         }
     } else {
         allowedWorkspaces = parseWorkspaceList(args);
@@ -82,12 +92,22 @@ void dispatch_startSession(std::string args) {
     }
     
     // Configure the enforcer
+    if (!g_fe_enforcer) {
+        FE_ERR("g_fe_enforcer is null, cannot start session");
+        showError("Internal error: enforcer not initialized");
+        return;
+    }
     g_fe_enforcer->setAllowedWorkspaces(allowedWorkspaces);
     
     // Store current workspace as last valid
-    auto pMonitor = Desktop::focusState()->monitor();
-    if (pMonitor && pMonitor->m_activeWorkspace) {
-        g_fe_enforcer->setLastValidWorkspace(pMonitor->m_activeWorkspace->m_id);
+    auto focusState = Desktop::focusState();
+    if (!focusState) {
+        FE_WARN("focusState is null, cannot determine current workspace for last valid");
+    } else {
+        auto pMonitor = focusState->monitor();
+        if (pMonitor && pMonitor->m_activeWorkspace) {
+            g_fe_enforcer->setLastValidWorkspace(pMonitor->m_activeWorkspace->m_id);
+        }
     }
     
     // Configure and start the timer
@@ -107,12 +127,16 @@ void dispatch_startSession(std::string args) {
     g_fe_timer->setOnSessionComplete([]() {
         g_fe_is_session_active = false;
         g_fe_is_break_time = false;
+        disableEnforcementHooks();
         showNotification("Focus session complete! Great work!", {1.0, 0.8, 0.0, 1.0}, 10000);
     });
     
     // Start!
     if (g_fe_timer->start()) {
         g_fe_is_session_active = true;
+        
+        // Enable enforcement hooks now that session is active
+        enableEnforcementHooks();
         
         // Build workspace list for notification
         std::string wsStr;
@@ -154,6 +178,9 @@ void dispatch_stopSession(std::string args) {
     g_fe_timer->stop();
     g_fe_is_session_active = false;
     g_fe_is_break_time = false;
+    
+    // Disable enforcement hooks
+    disableEnforcementHooks();
     
     int elapsed = g_fe_timer->getElapsedSeconds();
     showNotification("Focus session stopped. Total time: " + formatTime(elapsed));
@@ -199,10 +226,16 @@ void dispatch_allowWorkspace(std::string args) {
     
     try {
         WORKSPACEID id = std::stoi(args);
+        if (id < 1) {
+            showError("Invalid workspace ID: must be >= 1");
+            FE_WARN("Invalid workspace ID '{}': must be >= 1", args);
+            return;
+        }
         g_fe_enforcer->addAllowedWorkspace(id);
         showNotification("Workspace " + std::to_string(id) + " added to allowed list.");
     } catch (const std::exception& e) {
         showError("Invalid workspace ID: " + args);
+        FE_WARN("Failed to parse workspace ID '{}': {}", args, e.what());
     }
 }
 
@@ -214,10 +247,16 @@ void dispatch_disallowWorkspace(std::string args) {
     
     try {
         WORKSPACEID id = std::stoi(args);
+        if (id < 1) {
+            showError("Invalid workspace ID: must be >= 1");
+            FE_WARN("Invalid workspace ID '{}': must be >= 1", args);
+            return;
+        }
         g_fe_enforcer->removeAllowedWorkspace(id);
         showNotification("Workspace " + std::to_string(id) + " removed from allowed list.");
     } catch (const std::exception& e) {
         showError("Invalid workspace ID: " + args);
+        FE_WARN("Failed to parse workspace ID '{}': {}", args, e.what());
     }
 }
 
@@ -298,6 +337,9 @@ void dispatch_confirmStop(std::string args) {
         g_fe_timer->stop();
         g_fe_is_session_active = false;
         g_fe_is_break_time = false;
+        
+        // Disable enforcement hooks
+        disableEnforcementHooks();
         
         int elapsed = g_fe_timer->getElapsedSeconds();
         showNotification("Challenge passed! Session stopped. Total time: " + formatTime(elapsed));

@@ -193,6 +193,16 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     
     FE_INFO("HyFocus plugin initializing...");
     
+    // Version compatibility check
+    // HYPRLAND_API_VERSION is used by the plugin system to ensure API compatibility.
+    // The plugin loader will refuse to load plugins built against incompatible API versions.
+    // We log the version here for debugging purposes.
+    FE_INFO("Built against Hyprland API version: {}", HYPRLAND_API_VERSION);
+    
+    // Note: Runtime version checking is handled by Hyprland's plugin system.
+    // If this plugin loads successfully, the API version is compatible.
+    // HyFocus requires Hyprland v0.53.0+ due to API changes in hook registration.
+    
     // Register configuration options
     #define CONF(NAME, VALUE) \
         HyprlandAPI::addConfigValue(PHANDLE, "plugin:hyfocus:" NAME, {VALUE})

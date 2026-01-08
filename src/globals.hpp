@@ -105,7 +105,8 @@ inline std::mutex g_fe_mutex;  // Protects shared state during concurrent access
 // ============================================================================
 // Function Hooks
 // ============================================================================
-inline CFunctionHook* g_fe_pChangeworkspaceHook = nullptr;
+// NOTE: We no longer hook changeworkspace - we use a callback-based revert strategy
+// which is more stable. Only spawn hook remains for blocking app launches.
 inline CFunctionHook* g_fe_pSpawnHook = nullptr;
 
 // ============================================================================

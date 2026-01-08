@@ -34,7 +34,12 @@ void WindowShake::configure(int intensityPx, int durationMs, int frequencyMs) {
 
 void WindowShake::shake() {
     // Get the currently focused window
-    auto pWindow = Desktop::focusState()->window();
+    auto focusState = Desktop::focusState();
+    if (!focusState) {
+        FE_WARN("focusState is null, cannot shake window");
+        return;
+    }
+    auto pWindow = focusState->window();
     if (!pWindow) {
         FE_DEBUG("No focused window to shake");
         return;
@@ -149,5 +154,9 @@ void WindowShake::performShake(PHLWINDOW pWindow) {
     pWindow->m_realPosition->setValueAndWarp(originalPos);
     
     // Schedule a render to ensure the window is properly restored
-    g_pHyprRenderer->damageWindow(pWindow);
+    if (g_pHyprRenderer) {
+        g_pHyprRenderer->damageWindow(pWindow);
+    } else {
+        FE_WARN("g_pHyprRenderer is null, cannot damage window");
+    }
 }
