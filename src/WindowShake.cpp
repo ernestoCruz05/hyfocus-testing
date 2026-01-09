@@ -16,10 +16,7 @@
 WindowShake::WindowShake() = default;
 
 WindowShake::~WindowShake() {
-    stopShake();
-    if (m_shakeThread.joinable()) {
-        m_shakeThread.join();
-    }
+    stopShake();  // Now handles thread join internally
 }
 
 void WindowShake::configure(int intensityPx, int durationMs, int frequencyMs) {
@@ -76,6 +73,11 @@ void WindowShake::shakeWindow(PHLWINDOW pWindow) {
 void WindowShake::stopShake() {
     m_shouldStop = true;
     m_cv.notify_all();
+
+    // Wait for the shake thread to actually finish
+    if (m_shakeThread.joinable()) {
+        m_shakeThread.join();
+    }
 }
 
 void WindowShake::shakeLoop() {
@@ -111,52 +113,63 @@ void WindowShake::performShake(PHLWINDOW pWindow) {
     if (!pWindow || !pWindow->m_realPosition) {
         return;
     }
-    
+
     // Store original position
     Vector2D originalPos = pWindow->m_realPosition->goal();
-    
+
     auto startTime = std::chrono::steady_clock::now();
     auto endTime = startTime + std::chrono::milliseconds(m_duration);
-    
+
     const double period = static_cast<double>(m_frequency);
     const double totalDuration = static_cast<double>(m_duration);
-    
+
     while (!m_shouldStop.load()) {
         auto now = std::chrono::steady_clock::now();
-        
+
         if (now >= endTime) {
             break;
         }
-        
+
         // Calculate elapsed time in milliseconds
         double elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
             now - startTime).count();
-        
+
         // Calculate sinusoidal offset with decay
         // The decay makes the shake gradually diminish
         double decay = 1.0 - (elapsed / totalDuration);
         double phase = (2.0 * M_PI * elapsed) / period;
         double offset = m_intensity * std::sin(phase) * decay;
-        
+
         // Apply offset to window position
         Vector2D newPos = originalPos;
         newPos.x += offset;
-        
+
         // Use the animated variable's warp to instantly set position
         // This bypasses normal animation for immediate effect
         pWindow->m_realPosition->setValueAndWarp(newPos);
-        
-        // Small sleep to control animation frame rate (~60fps)
-        std::this_thread::sleep_for(std::chrono::milliseconds(16));
+
+        // Interruptible sleep: wait on condition variable instead of sleep_for
+        // This allows stopShake() to wake us up immediately
+        {
+            std::unique_lock<std::mutex> lock(m_mutex);
+            if (m_cv.wait_for(lock, std::chrono::milliseconds(16), [this]() {
+                return m_shouldStop.load();
+            })) {
+                // Woke up because m_shouldStop is true - exit loop
+                break;
+            }
+        }
     }
-    
-    // Restore original position
-    pWindow->m_realPosition->setValueAndWarp(originalPos);
-    
-    // Schedule a render to ensure the window is properly restored
-    if (g_pHyprRenderer) {
-        g_pHyprRenderer->damageWindow(pWindow);
-    } else {
-        FE_WARN("g_pHyprRenderer is null, cannot damage window");
+
+    // Restore original position (always, even if interrupted)
+    if (pWindow && pWindow->m_realPosition) {
+        pWindow->m_realPosition->setValueAndWarp(originalPos);
+
+        // Schedule a render to ensure the window is properly restored
+        if (g_pHyprRenderer) {
+            g_pHyprRenderer->damageWindow(pWindow);
+        } else {
+            FE_WARN("g_pHyprRenderer is null, cannot damage window");
+        }
     }
 }

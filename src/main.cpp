@@ -297,34 +297,32 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
  */
 APICALL EXPORT void PLUGIN_EXIT() {
     FE_INFO("HyFocus plugin shutting down...");
-    
+
     // First, mark session as inactive to stop all processing
+    // This prevents callbacks from starting new work
     g_fe_is_session_active = false;
-    
-    // Stop any running timer (do this BEFORE deleting)
+    g_fe_is_break_time = false;
+
+    // Unregister hooks FIRST - this prevents callbacks from firing
+    // while we're cleaning up
+    unregisterEventHooks();
+
+    // Stop and wait for timer thread (stop() joins the thread)
     if (g_fe_timer) {
         g_fe_timer->stop();
     }
-    
-    // Stop any ongoing shake animation and wait for thread
+
+    // Stop and wait for shake thread (stopShake() now joins the thread)
     if (g_fe_shaker) {
         g_fe_shaker->stopShake();
-        // Give thread time to finish
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    
-    // Cancel any pending exit challenge
+
+    // Cancel any pending exit challenge (no thread, just state reset)
     if (g_fe_exitChallenge) {
         g_fe_exitChallenge->cancelChallenge();
     }
-    
-    // Unregister hooks BEFORE deleting objects they might reference
-    unregisterEventHooks();
-    
-    // Small delay to ensure hooks are fully unregistered
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-    
-    // Now safe to delete
+
+    // All threads are now stopped - safe to delete
     delete g_fe_timer;
     delete g_fe_enforcer;
     delete g_fe_shaker;
@@ -333,6 +331,6 @@ APICALL EXPORT void PLUGIN_EXIT() {
     g_fe_enforcer = nullptr;
     g_fe_shaker = nullptr;
     g_fe_exitChallenge = nullptr;
-    
+
     FE_INFO("HyFocus plugin shutdown complete");
 }
