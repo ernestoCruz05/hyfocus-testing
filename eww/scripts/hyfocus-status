@@ -39,16 +39,8 @@ main() {
         exit 0
     fi
 
-    # Trigger status notification (this updates internal state)
-    # The notification output isn't capturable, but triggering it ensures
-    # any state-dependent variables are fresh
-    hyprctl dispatch hyfocus:status &>/dev/null
-
-    # For now, we output a basic active state since we can confirm plugin is loaded
-    # Future enhancement: Parse Hyprland socket events or use a state file
-    # that the plugin writes to
-
-    # Check if there's a HyFocus state file (if plugin writes one)
+    # Check if there's a HyFocus state file (plugin writes state here)
+    # DO NOT call hyfocus:status - it triggers notifications!
     state_file="${XDG_RUNTIME_DIR:-/tmp}/hyfocus-state.json"
     if [[ -f "$state_file" ]]; then
         cat "$state_file"

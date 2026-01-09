@@ -1,0 +1,16 @@
+; HyFocus Status Window
+; Minimal status indicator positioned in top-right corner
+
+(defwindow hyfocus-status
+  :monitor 0
+  :namespace "hyfocus-status"
+  :geometry (geometry
+    :x "10px"
+    :y "10px"
+    :width "140px"
+    :height "44px"
+    :anchor "top right")
+  :stacking "overlay"
+  :exclusive false
+  :focusable false
+  (status-indicator))

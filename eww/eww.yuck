@@ -4,28 +4,35 @@
 ; ============================================================
 ; Shared Variables
 ; ============================================================
-; These are populated by polling/listening scripts
+; These are populated by polling scripts
 
-; HyFocus session state
-(defvar hyfocus-active false)
-(defvar hyfocus-state "inactive")  ; "working", "break", "paused", "inactive"
-(defvar hyfocus-remaining "00:00")
-(defvar hyfocus-workspaces "[]")
+; HyFocus session state (polled every second)
+(defpoll hyfocus-active :interval "1s"
+  :initial "false"
+  `scripts/hyfocus-status | jq -r '.active'`)
+
+(defpoll hyfocus-state :interval "1s"
+  :initial "inactive"
+  `scripts/hyfocus-status | jq -r '.state'`)
+
+(defpoll hyfocus-remaining :interval "1s"
+  :initial "--:--"
+  `scripts/hyfocus-status | jq -r '.remaining'`)
+
+(defpoll hyfocus-workspaces :interval "1s"
+  :initial "[]"
+  `scripts/hyfocus-status | jq -r '.workspaces'`)
 
 ; ============================================================
 ; Includes
 ; ============================================================
-; Window and widget definitions will be added in later plans
+; Window and widget definitions
 
-; Include windows (added in 06-02)
-; (include "windows/status.yuck")
-; (include "windows/start-panel.yuck")
-; (include "windows/warning.yuck")
+; Include widgets (must come before windows that use them)
+(include "widgets/status-widget.yuck")
 
-; Include widgets (added in 06-02)
-; (include "widgets/timer.yuck")
-; (include "widgets/workspace-selector.yuck")
-; (include "widgets/controls.yuck")
+; Include windows
+(include "windows/status.yuck")
 
 ; ============================================================
 ; Placeholder Test Window

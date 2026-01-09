@@ -1,0 +1,27 @@
+// HyFocus Status Indicator Styles
+
+.status-container {
+  padding: 8px 12px;
+
+  &.working {
+    .status-icon { color: $blue; }
+  }
+  &.break {
+    .status-icon { color: $green; }
+  }
+  &.paused {
+    .status-icon { color: $yellow; }
+  }
+}
+
+.status-icon {
+  font-family: "Symbols Nerd Font", "Font Awesome 6 Free", monospace;
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+.status-time {
+  font-family: $font-family;
+  font-size: 14px;
+  color: $text;
+}
