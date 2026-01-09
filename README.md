@@ -2,6 +2,8 @@
 
 A Hyprland plugin that implements Pomodoro-style focus enforcement with workspace locking and app blocking.
 
+![HyFocus Demo](assets/demo.gif)
+
 ## Overview
 
 HyFocus helps you stay productive by restricting workspace access and blocking app launches during focus sessions. When a timer is running, attempting to switch to non-whitelisted workspaces or launching new apps triggers a visual "shake" animation and blocks the action.
@@ -11,11 +13,11 @@ HyFocus helps you stay productive by restricting workspace access and blocking a
 - **Pomodoro Timer**: Configurable work/break intervals (default: 25/5 minutes)
 - **Workspace Locking**: Whitelist specific workspaces during focus sessions
 - **App Blocking**: Prevent launching new applications during focus sessions
-- **Exit Challenge**: Optional minigame to discourage stopping sessions early
+- **Exit Challenge**: Math problem to discourage stopping sessions early
 - **Visual Feedback**: Window shake animation when attempting restricted actions
+- **EWW Widgets**: Beautiful, native-feeling UI widgets (optional, customizable)
 - **Pause/Resume**: Pause your session without losing progress
 - **Flexible Configuration**: All settings configurable via `hyprland.conf`
-- **Exception Classes**: Floating widgets (EWW, rofi, etc.) remain accessible
 
 ## Installation
 
@@ -42,6 +44,112 @@ meson setup build --buildtype=release
 ninja -C build
 sudo cp build/libhyfocus.so /usr/lib/hyprland/plugins/
 ```
+
+## EWW Widgets (Optional)
+
+HyFocus includes beautiful, minimal EWW widgets for a native-feeling experience. These are **completely optional** - you can use the plugin with just keybinds and Hyprland notifications, or create your own custom widgets.
+
+### Included Widgets
+
+| Widget | Description |
+|--------|-------------|
+| **Start Panel** | Select workspaces and duration, then start a session |
+| **Status** | Floating timer showing remaining time (auto-shows when session active) |
+| **Challenge** | Math problem widget when stopping a session early |
+| **Flash** | Quick "Stay focused" overlay when attempting blocked actions |
+| **Backdrop** | Fullscreen blur behind modal widgets |
+
+### Screenshots
+
+> TODO: Add screenshots
+
+### Setting Up EWW Widgets
+
+1. **Install EWW** if you haven't already:
+   ```bash
+   # Arch
+   yay -S eww
+   
+   # From source
+   cargo install eww
+   ```
+
+2. **Copy the EWW config** to your preferred location:
+   ```bash
+   cp -r /path/to/hyfocus/eww ~/.config/hyfocus-eww
+   ```
+
+3. **Update the paths** in the scripts to match your config location:
+   ```bash
+   # Edit eww/scripts/* and update EWW_CMD path
+   EWW_CMD="eww -c ~/.config/hyfocus-eww"
+   ```
+
+4. **Add layerrules** to your `hyprland.conf` for blur effects:
+   ```bash
+   # HyFocus EWW blur (Hyprland 0.53+)
+   layerrule = blur on, match:namespace hyfocus-flash
+   layerrule = blur on, match:namespace hyfocus-start
+   layerrule = blur on, match:namespace hyfocus-challenge
+   layerrule = blur on, match:namespace hyfocus-backdrop
+   layerrule = blur on, match:namespace hyfocus-status
+   
+   layerrule = ignore_alpha 0.3, match:namespace hyfocus-flash
+   layerrule = ignore_alpha 0.3, match:namespace hyfocus-start
+   layerrule = ignore_alpha 0.3, match:namespace hyfocus-challenge
+   layerrule = ignore_alpha 0.3, match:namespace hyfocus-status
+   ```
+
+5. **Enable EWW integration** in the plugin config:
+   ```bash
+   plugin {
+       hyfocus {
+           use_eww_notifications = 1
+           eww_config_path = /home/YOU/.config/hyfocus-eww
+       }
+   }
+   ```
+
+6. **Start the EWW daemon** (add to autostart):
+   ```bash
+   exec-once = eww daemon -c ~/.config/hyfocus-eww
+   ```
+
+7. **Add keybinds**:
+   ```bash
+   # Open start panel (select workspaces & duration with UI)
+   bind = SUPER, F, exec, ~/.config/hyfocus-eww/scripts/open-start
+   
+   # Stop session (opens challenge widget if enabled)
+   bind = SUPER CTRL, F, exec, ~/.config/hyfocus-eww/scripts/show-challenge
+   
+   # Quick start on current workspace (no UI, uses Hyprland notifications)
+   bind = SUPER SHIFT, F, hyfocus:start,
+   
+   # Force stop (bypasses challenge, no UI)
+   bind = SUPER CTRL SHIFT, F, hyfocus:stop, force
+   ```
+
+### Customizing Widgets
+
+The EWW widgets use SCSS for styling. Key files:
+
+```
+eww/
+├── eww.yuck              # Main config, includes all widgets
+├── eww.scss              # Main stylesheet
+├── styles/
+│   ├── _variables.scss   # Colors, fonts, spacing
+│   ├── _glass.scss       # Glass/blur styling
+│   ├── _start-panel.scss # Start panel styles
+│   ├── _challenge.scss   # Challenge widget styles
+│   └── _flash.scss       # Flash overlay styles
+├── widgets/              # Widget definitions
+├── windows/              # Window definitions
+└── scripts/              # Control scripts
+```
+
+Feel free to modify the styles, colors, and layout to match your desktop!
 
 ## Configuration
 
@@ -95,6 +203,25 @@ The exit challenge adds intentional friction to prevent impulsive session stops:
 
 ### Keybinds
 
+#### With EWW Widgets (Recommended)
+
+```bash
+# Open start panel UI
+bind = SUPER, F, exec, ~/.config/hyfocus-eww/scripts/open-start
+
+# Stop session (opens challenge UI if enabled)
+bind = SUPER CTRL, F, exec, ~/.config/hyfocus-eww/scripts/show-challenge
+
+# Force stop (bypasses challenge)
+bind = SUPER CTRL SHIFT, F, hyfocus:stop, force
+
+# Pause/resume session
+bind = SUPER, P, hyfocus:pause,
+bind = SUPER SHIFT, P, hyfocus:resume,
+```
+
+#### Without EWW (Dispatcher Only)
+
 ```bash
 # Start focus session on workspaces 3 and 5
 bind = SUPER, F, hyfocus:start, 3,5
@@ -102,17 +229,17 @@ bind = SUPER, F, hyfocus:start, 3,5
 # Toggle focus mode (start/stop)
 bind = SUPER SHIFT, F, hyfocus:toggle, 3,5
 
-# Stop current session (may require challenge if enabled)
+# Stop current session (uses Hyprland notification for challenge)
 bind = SUPER CTRL, F, hyfocus:stop,
 
-# Confirm exit challenge answer
-bind = SUPER, C, hyfocus:confirm, yes
+# Confirm exit challenge answer (when using notifications)
+bind = SUPER, C, hyfocus:confirm, <answer>
 
 # Pause/resume session
 bind = SUPER, P, hyfocus:pause,
 bind = SUPER SHIFT, P, hyfocus:resume,
 
-# Show status
+# Show status (Hyprland notification)
 bind = SUPER, S, hyfocus:status,
 
 # Dynamically add/remove workspaces

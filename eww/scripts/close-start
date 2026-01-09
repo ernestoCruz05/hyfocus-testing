@@ -1,0 +1,10 @@
+#!/bin/bash
+# Close start panel and backdrop
+
+EWW_CMD="eww -c /home/sof/dev/forks/hyfocus/eww"
+
+$EWW_CMD close hyfocus-start &
+$EWW_CMD close hyfocus-backdrop &
+$EWW_CMD update selected-workspaces="" &
+
+echo "ok"

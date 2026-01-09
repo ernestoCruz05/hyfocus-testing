@@ -1,5 +1,6 @@
 [repository]
 name = "hyfocus"
+url = "git@github.com:ernestoCruz05/hyfocus.git"
 authors = ["faky (github.com/ernestoCruz05)"]
 commit_pins = []
 

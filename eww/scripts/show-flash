@@ -1,0 +1,13 @@
+#!/bin/bash
+# Show a quick flash warning that auto-closes
+
+EWW_CMD="eww -c /home/sof/dev/forks/hyfocus/eww"
+MESSAGE="${1:-Stay focused}"
+DURATION="${2:-1200}"  # Duration in ms, default 1.2 seconds
+
+# Set message and open
+$EWW_CMD update flash-message="$MESSAGE"
+$EWW_CMD open hyfocus-flash
+
+# Auto-close after duration
+(sleep $(echo "scale=3; $DURATION/1000" | bc) && $EWW_CMD close hyfocus-flash) &

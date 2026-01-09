@@ -1,0 +1,21 @@
+#!/bin/bash
+# Submit challenge answer from input field
+# Called with the input value as $1 (from onaccept)
+
+EWW_CMD="eww -c /home/sof/dev/forks/hyfocus/eww"
+
+INPUT="$1"
+ANSWER=$($EWW_CMD get challenge-answer)
+
+if [ "$INPUT" = "$ANSWER" ]; then
+    # Correct! Stop the session
+    hyprctl dispatch hyfocus:stop force &
+    $EWW_CMD close hyfocus-challenge &
+    $EWW_CMD close hyfocus-backdrop &
+    $EWW_CMD update challenge-error="" challenge-problem="" challenge-answer="" &
+else
+    # Wrong answer
+    $EWW_CMD update challenge-error="Incorrect answer. Try again." &
+fi
+
+echo "ok"

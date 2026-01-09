@@ -133,6 +133,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     CONF("shake_duration", 300L);     // Milliseconds
     CONF("shake_frequency", 50L);     // Oscillation period in ms
     
+    // EWW integration settings
+    CONF("use_eww_notifications", 1L);   // Use EWW widgets instead of Hyprland notifications
+    CONF("eww_config_path", "");         // Path to EWW config directory
+    
     // Exception classes (comma-separated string)
     CONF("exception_classes", "eww,rofi,wofi,dmenu,ulauncher");
     
@@ -187,6 +191,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     static const auto* pExceptionClasses = (Hyprlang::STRING const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exception_classes")->getDataStaticPtr());
     static const auto* pSpawnWhitelist = (Hyprlang::STRING const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:spawn_whitelist")->getDataStaticPtr());
     static const auto* pExitChallengePhrase = (Hyprlang::STRING const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exit_challenge_phrase")->getDataStaticPtr());
+    static const auto* pUseEwwNotifications = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:use_eww_notifications")->getDataStaticPtr());
+    static const auto* pEwwConfigPath = (Hyprlang::STRING const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:eww_config_path")->getDataStaticPtr());
     
     // Apply values to globals
     g_fe_total_duration = **pTotalDuration;
@@ -199,12 +205,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_fe_block_spawn = **pBlockSpawn != 0;
     g_fe_exit_challenge_type = **pExitChallengeType;
     g_fe_exit_challenge_phrase = *pExitChallengePhrase;
+    g_fe_use_eww_notifications = **pUseEwwNotifications != 0;
+    g_fe_eww_config_path = *pEwwConfigPath;
     
-    // DEBUG: Show loaded config
-    HyprlandAPI::addNotification(PHANDLE, 
-        "[hyfocus] Config: exit_challenge=" + std::to_string(g_fe_exit_challenge_type) +
-        ", block_spawn=" + std::to_string(g_fe_block_spawn ? 1 : 0),
-        CHyprColor{0.2, 0.6, 1.0, 1.0}, 5000);
+    FE_INFO("Config loaded: exit_challenge={}, use_eww={}, eww_path={}", 
+            g_fe_exit_challenge_type, g_fe_use_eww_notifications, g_fe_eww_config_path);
     
     // Parse exception classes
     std::string exceptionStr = *pExceptionClasses;
@@ -297,32 +302,34 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
  */
 APICALL EXPORT void PLUGIN_EXIT() {
     FE_INFO("HyFocus plugin shutting down...");
-
+    
     // First, mark session as inactive to stop all processing
-    // This prevents callbacks from starting new work
     g_fe_is_session_active = false;
-    g_fe_is_break_time = false;
-
-    // Unregister hooks FIRST - this prevents callbacks from firing
-    // while we're cleaning up
-    unregisterEventHooks();
-
-    // Stop and wait for timer thread (stop() joins the thread)
+    
+    // Stop any running timer (do this BEFORE deleting)
     if (g_fe_timer) {
         g_fe_timer->stop();
     }
-
-    // Stop and wait for shake thread (stopShake() now joins the thread)
+    
+    // Stop any ongoing shake animation and wait for thread
     if (g_fe_shaker) {
         g_fe_shaker->stopShake();
+        // Give thread time to finish
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-
-    // Cancel any pending exit challenge (no thread, just state reset)
+    
+    // Cancel any pending exit challenge
     if (g_fe_exitChallenge) {
         g_fe_exitChallenge->cancelChallenge();
     }
-
-    // All threads are now stopped - safe to delete
+    
+    // Unregister hooks BEFORE deleting objects they might reference
+    unregisterEventHooks();
+    
+    // Small delay to ensure hooks are fully unregistered
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    // Now safe to delete
     delete g_fe_timer;
     delete g_fe_enforcer;
     delete g_fe_shaker;
@@ -331,6 +338,6 @@ APICALL EXPORT void PLUGIN_EXIT() {
     g_fe_enforcer = nullptr;
     g_fe_shaker = nullptr;
     g_fe_exitChallenge = nullptr;
-
+    
     FE_INFO("HyFocus plugin shutdown complete");
 }

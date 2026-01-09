@@ -45,19 +45,28 @@ static void onWorkspaceChange(void* self, SCallbackInfo& info, std::any data) {
     (void)self;
     (void)info;
     
+    // Debug log
+    std::ofstream dbg("/tmp/hyfocus_debug.log", std::ios::app);
+    dbg << "onWorkspaceChange called, session_active=" << g_fe_is_session_active.load() << std::endl;
+    
     try {
         auto pWorkspace = std::any_cast<PHLWORKSPACE>(data);
         if (!pWorkspace) {
+            dbg << "pWorkspace is null" << std::endl;
+            dbg.close();
             return;
         }
         
         WORKSPACEID newWsId = pWorkspace->m_id;
+        dbg << "newWsId=" << newWsId << std::endl;
         
         // If we're currently reverting, just update tracking and exit
         if (g_isReverting.load()) {
             if (g_fe_enforcer && g_fe_enforcer->isWorkspaceAllowed(newWsId)) {
                 g_fe_enforcer->setLastValidWorkspace(newWsId);
             }
+            dbg << "reverting, skip" << std::endl;
+            dbg.close();
             return;
         }
         
@@ -66,8 +75,11 @@ static void onWorkspaceChange(void* self, SCallbackInfo& info, std::any data) {
             if (g_fe_enforcer) {
                 g_fe_enforcer->setLastValidWorkspace(newWsId);
             }
+            dbg << "no session active" << std::endl;
+            dbg.close();
             return;
         }
+        dbg.close();
         
         // During breaks, check if enforcement is active
         if (g_fe_is_break_time.load() && !g_fe_enforce_during_break) {
@@ -93,7 +105,12 @@ static void onWorkspaceChange(void* self, SCallbackInfo& info, std::any data) {
             g_fe_shaker->shake();
         }
         
-        showWarning("Focus mode: Workspace " + std::to_string(newWsId) + " is restricted!");
+        // Show flash warning (EWW) or notification (fallback)
+        if (g_fe_use_eww_notifications && !g_fe_eww_config_path.empty()) {
+            showFlash("Stay focused");
+        } else {
+            showWarning("Focus mode: Workspace " + std::to_string(newWsId) + " is restricted!");
+        }
         
         // Set revert guard to prevent infinite loop
         g_isReverting.store(true);
@@ -186,7 +203,12 @@ static void hkSpawn(std::string args) {
         g_fe_shaker->shake();
     }
     
-    showWarning("Focus mode: App launching is blocked!");
+    // Show flash warning (EWW) or notification (fallback)
+    if (g_fe_use_eww_notifications && !g_fe_eww_config_path.empty()) {
+        showFlash("Stay focused");
+    } else {
+        showWarning("Focus mode: App launching is blocked!");
+    }
     
     // Do NOT call the original function - spawn is prevented
 }
@@ -251,6 +273,11 @@ void registerEventHooks(std::vector<std::string>& errors) {
         "workspace",
         onWorkspaceChange
     );
+    
+    // Debug to file
+    std::ofstream dbg("/tmp/hyfocus_debug.log", std::ios::app);
+    dbg << "registerEventHooks: workspaceCallback=" << (workspaceCallback ? "OK" : "NULL") << std::endl;
+    dbg.close();
     
     if (!workspaceCallback) {
         errors.push_back("Failed to register workspace callback - enforcement disabled");

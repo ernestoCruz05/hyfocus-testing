@@ -1,0 +1,7 @@
+#!/bin/bash
+# Open start panel with backdrop blur
+
+EWW_CMD="eww -c /home/sof/dev/forks/hyfocus/eww"
+
+$EWW_CMD open hyfocus-backdrop
+$EWW_CMD open hyfocus-start

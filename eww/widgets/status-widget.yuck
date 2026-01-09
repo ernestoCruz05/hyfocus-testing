@@ -1,13 +1,16 @@
 ; HyFocus Status Indicator Widget
 ; Shows focus state icon and remaining time
+; Only visible when a session is active
 
 (defwidget status-indicator []
-  (box :class "glass-panel status-container ${hyfocus-state}"
-       :orientation "h"
-       :space-evenly false
-       :visible {hyfocus-active == "true"}
-    (label :class "status-icon"
-           :text {hyfocus-state == "working" ? "" :
-                  hyfocus-state == "break" ? "" :
-                  hyfocus-state == "paused" ? "" : ""})
-    (label :class "status-time" :text hyfocus-remaining)))
+  (revealer :transition "slidedown"
+            :reveal {hyfocus-active == "true"}
+            :duration "300ms"
+    (box :class "status-container ${hyfocus-state}"
+         :orientation "h"
+         :space-evenly false
+      (label :class "status-icon"
+             :text {hyfocus-state == "working" ? "󰔟" :
+                    hyfocus-state == "break" ? "󰒲" :
+                    hyfocus-state == "paused" ? "󰏤" : "󰐊"})
+      (label :class "status-time" :text hyfocus-remaining))))

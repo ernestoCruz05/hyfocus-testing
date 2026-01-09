@@ -1,0 +1,10 @@
+#!/bin/bash
+# Close challenge widget and backdrop
+
+EWW_CMD="eww -c /home/sof/dev/forks/hyfocus/eww"
+
+$EWW_CMD close hyfocus-challenge &
+$EWW_CMD close hyfocus-backdrop &
+$EWW_CMD update challenge-error="" &
+
+echo "ok"

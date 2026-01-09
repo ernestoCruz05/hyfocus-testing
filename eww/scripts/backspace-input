@@ -1,0 +1,12 @@
+#!/bin/bash
+# Backspace for challenge input
+
+EWW_CMD="eww -c /home/sof/dev/forks/hyfocus/eww"
+
+CURRENT=$($EWW_CMD get challenge-input)
+
+if [ -n "$CURRENT" ]; then
+    # Remove last character
+    NEW="${CURRENT%?}"
+    $EWW_CMD update challenge-input="$NEW"
+fi

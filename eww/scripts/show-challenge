@@ -1,0 +1,26 @@
+#!/bin/bash
+# Generate a math challenge and open the challenge widget with backdrop
+
+EWW_CMD="eww -c /home/sof/dev/forks/hyfocus/eww"
+
+# Generate random numbers
+A=$((RANDOM % 50 + 10))
+B=$((RANDOM % 50 + 10))
+
+# Random operation
+OPS=("+" "-" "*")
+OP=${OPS[$((RANDOM % 3))]}
+
+# Calculate answer
+case "$OP" in
+    "+") ANSWER=$((A + B)) ;;
+    "-") ANSWER=$((A - B)) ;;
+    "*") ANSWER=$((A * B)) ;;
+esac
+
+PROBLEM="$A $OP $B"
+
+# Set variables and open widgets
+$EWW_CMD update challenge-problem="$PROBLEM" challenge-answer="$ANSWER" challenge-error=""
+$EWW_CMD open hyfocus-backdrop
+$EWW_CMD open hyfocus-challenge

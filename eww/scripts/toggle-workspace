@@ -1,0 +1,27 @@
+#!/bin/bash
+# Toggle workspace selection for HyFocus start panel
+
+EWW_CMD="eww -c /home/sof/dev/forks/hyfocus/eww"
+WS_NUM="$1"
+
+if [ -z "$WS_NUM" ]; then
+    exit 1
+fi
+
+# Get current selection
+CURRENT=$($EWW_CMD get selected-workspaces)
+
+# Check if workspace is already selected
+if echo "$CURRENT" | grep -qw "$WS_NUM"; then
+    # Remove it
+    NEW=$(echo "$CURRENT" | sed "s/\b$WS_NUM\b//g" | tr -s ' ' | sed 's/^ //;s/ $//')
+else
+    # Add it
+    if [ -z "$CURRENT" ]; then
+        NEW="$WS_NUM"
+    else
+        NEW="$CURRENT $WS_NUM"
+    fi
+fi
+
+$EWW_CMD update selected-workspaces="$NEW"

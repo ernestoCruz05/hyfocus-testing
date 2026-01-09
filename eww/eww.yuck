@@ -30,9 +30,17 @@
 
 ; Include widgets (must come before windows that use them)
 (include "widgets/status-widget.yuck")
+(include "widgets/control-panel.yuck")
+(include "widgets/start-panel-widget.yuck")
+(include "widgets/challenge-widget.yuck")
+(include "widgets/flash-widget.yuck")
 
 ; Include windows
 (include "windows/status.yuck")
+(include "windows/backdrop.yuck")
+(include "windows/start-panel.yuck")
+(include "windows/challenge.yuck")
+(include "windows/flash.yuck")
 
 ; ============================================================
 ; Placeholder Test Window

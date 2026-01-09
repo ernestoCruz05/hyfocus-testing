@@ -15,12 +15,14 @@
 // Include std headers BEFORE the private->public hack to avoid template issues
 #include <atomic>
 #include <chrono>
+#include <fstream>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <set>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #define private public
@@ -83,6 +85,8 @@ inline std::string g_fe_exit_challenge_phrase = "I want to stop focusing";
 inline int g_fe_shake_intensity = 15;      // Pixels to shake
 inline int g_fe_shake_duration = 300;      // Shake duration in ms
 inline int g_fe_shake_frequency = 50;      // Shake oscillation frequency in ms
+inline bool g_fe_use_eww_notifications = true;  // Use EWW widgets instead of Hyprland notifications
+inline std::string g_fe_eww_config_path = "";   // Path to EWW config directory
 
 // ============================================================================
 // State Variables
@@ -112,8 +116,40 @@ inline CFunctionHook* g_fe_pSpawnHook = nullptr;
 // ============================================================================
 // Utility Macros
 // ============================================================================
+
+// Execute shell command asynchronously
+inline void execAsync(const std::string& cmd) {
+    std::thread([cmd]() {
+        system(cmd.c_str());
+    }).detach();
+}
+
+// Trigger EWW widget (if configured)
+inline void triggerEww(const std::string& action, const std::string& args = "") {
+    if (g_fe_eww_config_path.empty()) return;
+    std::string cmd = "eww -c " + g_fe_eww_config_path + " " + action;
+    if (!args.empty()) cmd += " " + args;
+    execAsync(cmd);
+}
+
+// Show EWW flash warning (quick blur with message that auto-closes)
+inline void showFlash(const std::string& msg = "Stay focused", int durationMs = 1200) {
+    // Debug to file
+    std::ofstream dbg("/tmp/hyfocus_debug.log", std::ios::app);
+    dbg << "showFlash: use_eww=" << g_fe_use_eww_notifications << " path=" << g_fe_eww_config_path << std::endl;
+    dbg.close();
+    
+    if (g_fe_use_eww_notifications && !g_fe_eww_config_path.empty()) {
+        std::string cmd = g_fe_eww_config_path + "/scripts/show-flash \"" + msg + "\" " + std::to_string(durationMs);
+        execAsync(cmd);
+    }
+}
+
 inline void showNotification(const std::string& msg, CHyprColor color = {0.2, 0.8, 0.2, 1.0}, uint64_t timeMs = 3000) {
-    HyprlandAPI::addNotification(PHANDLE, "[hyfocus] " + msg, color, timeMs);
+    if (!g_fe_use_eww_notifications) {
+        HyprlandAPI::addNotification(PHANDLE, "[hyfocus] " + msg, color, timeMs);
+    }
+    // EWW status widget polls automatically, so no action needed
 }
 
 inline void showError(const std::string& msg) {

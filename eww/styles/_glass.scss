@@ -1,51 +1,9 @@
-// HyFocus Glass Effect Styles
-// Note: Actual blur comes from Hyprland layerrules, not CSS backdrop-filter
-// GTK doesn't support backdrop-filter, so we use semi-transparent backgrounds
-// and let Hyprland's blur shader handle the glass effect
+// Native glass - transparent, content floats over blur
 
-@import 'variables';
-
-// Base glass panel class
 .glass-panel {
-  background-color: rgba($base, $glass-opacity);
-  border: 1px solid $glass-border-color;
-  border-radius: $border-radius;
+  background: transparent;
 }
 
-// Variants
-.glass-panel-dark {
-  background-color: rgba($crust, $glass-opacity);
-  border: 1px solid $glass-border-color;
-  border-radius: $border-radius;
-}
-
-.glass-panel-light {
-  background-color: rgba($surface0, $glass-opacity);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: $border-radius;
-}
-
-// Status-specific glass panels
-.glass-panel-working {
-  background-color: rgba($base, $glass-opacity);
-  border: 1px solid rgba($green, 0.3);
-  border-radius: $border-radius;
-}
-
-.glass-panel-break {
-  background-color: rgba($base, $glass-opacity);
-  border: 1px solid rgba($blue, 0.3);
-  border-radius: $border-radius;
-}
-
-.glass-panel-warning {
-  background-color: rgba($base, $glass-opacity);
-  border: 1px solid rgba($red, 0.3);
-  border-radius: $border-radius;
-}
-
-.glass-panel-paused {
-  background-color: rgba($base, $glass-opacity);
-  border: 1px solid rgba($yellow, 0.3);
-  border-radius: $border-radius;
+.backdrop {
+  background: rgba(0, 0, 0, 0.3);
 }
