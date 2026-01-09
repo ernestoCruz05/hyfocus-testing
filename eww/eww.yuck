@@ -1,27 +1,16 @@
 ; HyFocus EWW Main Configuration
-; Widget definitions for focus session management
 
 ; ============================================================
-; Shared Variables
+; Shared Variables - using named pipe for instant updates
 ; ============================================================
-; These are populated by polling scripts
 
-; HyFocus session state (polled every second)
-(defpoll hyfocus-active :interval "1s"
-  :initial "false"
-  `scripts/hyfocus-status | jq -r '.active'`)
+; Listen to named pipe for real-time state updates (JSON stream)
+(deflisten hyfocus-data
+  :initial '{"active": false, "state": "inactive", "remaining": "00:00", "workspaces": []}'
+  `scripts/hyfocus-listen`)
 
-(defpoll hyfocus-state :interval "1s"
-  :initial "inactive"
-  `scripts/hyfocus-status | jq -r '.state'`)
-
-(defpoll hyfocus-remaining :interval "1s"
-  :initial "--:--"
-  `scripts/hyfocus-status | jq -r '.remaining'`)
-
-(defpoll hyfocus-workspaces :interval "1s"
-  :initial "[]"
-  `scripts/hyfocus-status | jq -r '.workspaces'`)
+; Extract individual fields from JSON using EWW's JSON access
+(defvar _hyfocus-dummy "") ; dummy for initialization
 
 ; ============================================================
 ; Includes
@@ -66,4 +55,4 @@
     :space-evenly false
     (label
       :class "text-secondary"
-      :text "HyFocus: ${hyfocus-state}")))
+      :text "HyFocus: ${hyfocus-data.state}")))

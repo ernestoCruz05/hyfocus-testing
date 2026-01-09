@@ -116,11 +116,6 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
                 ChallengeType challengeType = static_cast<ChallengeType>(g_fe_exit_challenge_type);
                 g_fe_exitChallenge->configure(challengeType, g_fe_exit_challenge_phrase);
             }
-            
-            // Debug
-            std::ofstream dbg("/tmp/hyfocus_debug.log", std::ios::app);
-            dbg << "configReloaded: eww_path='" << g_fe_eww_config_path << "'" << std::endl;
-            dbg.close();
         }
     );
     
@@ -159,12 +154,6 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     // Handle "NONE" as empty string for eww_config_path
     std::string ewwPath = *pEwwConfigPath;
     g_fe_eww_config_path = (ewwPath == "NONE") ? "" : ewwPath;
-    
-    // Debug to file
-    std::ofstream dbg("/tmp/hyfocus_debug.log", std::ios::app);
-    dbg << "INIT: use_eww=" << g_fe_use_eww_notifications << " eww_path='" << g_fe_eww_config_path << "'" << std::endl;
-    dbg << "INIT: pEwwConfigPath=" << (void*)pEwwConfigPath << " value='" << (*pEwwConfigPath ? *pEwwConfigPath : "(null)") << "'" << std::endl;
-    dbg.close();
     
     FE_INFO("Config loaded: exit_challenge={}, use_eww={}, eww_path={}", 
             g_fe_exit_challenge_type, g_fe_use_eww_notifications, g_fe_eww_config_path);
@@ -213,6 +202,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_fe_timer->configure(g_fe_total_duration, g_fe_work_interval, g_fe_break_interval);
     g_fe_shaker->configure(g_fe_shake_intensity, g_fe_shake_duration, g_fe_shake_frequency);
     g_fe_enforcer->setEnforceDuringBreak(g_fe_enforce_during_break);
+    
+    // Initialize IPC pipe for EWW
+    initPipe();
     
     // Configure exit challenge
     ChallengeType challengeType = static_cast<ChallengeType>(g_fe_exit_challenge_type);
@@ -263,6 +255,10 @@ APICALL EXPORT void PLUGIN_EXIT() {
     
     // First, mark session as inactive to stop all processing
     g_fe_is_session_active = false;
+    
+    // Cleanup IPC pipe
+    cleanupPipe();
+    removeStateFile();
     
     // Stop any running timer (do this BEFORE deleting)
     if (g_fe_timer) {

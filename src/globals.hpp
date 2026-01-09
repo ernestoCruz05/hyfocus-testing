@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <fcntl.h>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -16,7 +17,9 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <sys/stat.h>
 #include <thread>
+#include <unistd.h>
 #include <vector>
 
 #define private public
@@ -120,13 +123,6 @@ inline void showWarning(const std::string& msg) {
 }
 
 inline void writeStateFile(bool active, const std::string& state, int remainingSecs, const std::vector<WORKSPACEID>& workspaces = {}) {
-    const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
-    if (!runtimeDir) runtimeDir = "/tmp";
-    
-    std::string path = std::string(runtimeDir) + "/hyfocus-state.json";
-    std::ofstream f(path);
-    if (!f.is_open()) return;
-    
     int mins = remainingSecs / 60;
     int secs = remainingSecs % 60;
     char timeStr[8];
@@ -139,11 +135,24 @@ inline void writeStateFile(bool active, const std::string& state, int remainingS
     }
     wsArr += "]";
     
-    f << "{\"active\": " << (active ? "true" : "false")
-      << ", \"state\": \"" << state << "\""
-      << ", \"remaining\": \"" << timeStr << "\""
-      << ", \"workspaces\": " << wsArr << "}";
-    f.close();
+    std::ostringstream json;
+    json << "{\"active\": " << (active ? "true" : "false")
+         << ", \"state\": \"" << state << "\""
+         << ", \"remaining\": \"" << timeStr << "\""
+         << ", \"workspaces\": " << wsArr << "}";
+    
+    // Write to pipe (for deflisten)
+    writeToPipe(json.str());
+    
+    // Also write to file (fallback for polling)
+    const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
+    if (!runtimeDir) runtimeDir = "/tmp";
+    std::string path = std::string(runtimeDir) + "/hyfocus-state.json";
+    std::ofstream f(path);
+    if (f.is_open()) {
+        f << json.str();
+        f.close();
+    }
 }
 
 inline void removeStateFile() {
@@ -151,4 +160,36 @@ inline void removeStateFile() {
     if (!runtimeDir) runtimeDir = "/tmp";
     std::string path = std::string(runtimeDir) + "/hyfocus-state.json";
     std::remove(path.c_str());
+}
+
+// Named pipe for EWW IPC
+inline std::string g_fe_pipe_path = "";
+
+inline void initPipe() {
+    const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
+    if (!runtimeDir) runtimeDir = "/tmp";
+    g_fe_pipe_path = std::string(runtimeDir) + "/hyfocus.pipe";
+    
+    // Remove old pipe if exists, create new one
+    unlink(g_fe_pipe_path.c_str());
+    mkfifo(g_fe_pipe_path.c_str(), 0666);
+}
+
+inline void writeToPipe(const std::string& json) {
+    if (g_fe_pipe_path.empty()) return;
+    
+    // Open in non-blocking mode, write, close immediately
+    // This prevents blocking if no one is reading
+    int fd = open(g_fe_pipe_path.c_str(), O_WRONLY | O_NONBLOCK);
+    if (fd >= 0) {
+        std::string msg = json + "\n";
+        write(fd, msg.c_str(), msg.size());
+        close(fd);
+    }
+}
+
+inline void cleanupPipe() {
+    if (!g_fe_pipe_path.empty()) {
+        unlink(g_fe_pipe_path.c_str());
+    }
 }
