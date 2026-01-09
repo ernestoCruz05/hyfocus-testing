@@ -1,7 +1,7 @@
 /**
  * @file dispatchers.cpp
  * @brief Implementation of HyFocus dispatcher commands.
- * 
+ *
  * This file contains the implementation of all user-facing commands
  * for controlling the focus enforcement system. Commands can be
  * triggered via keybinds or hyprctl.
@@ -9,6 +9,8 @@
 #include "dispatchers.hpp"
 #include "eventhooks.hpp"
 #include <sstream>
+#include <fstream>
+#include <cstdlib>
 
 /**
  * @brief Parse a comma-separated list of workspace IDs.
@@ -50,11 +52,87 @@ static std::vector<WORKSPACEID> parseWorkspaceList(const std::string& input) {
 static std::string formatTime(int seconds) {
     int mins = seconds / 60;
     int secs = seconds % 60;
-    
+
     std::ostringstream oss;
     oss << std::setfill('0') << std::setw(2) << mins
         << ":" << std::setfill('0') << std::setw(2) << secs;
     return oss.str();
+}
+
+/**
+ * @brief Get the path to the HyFocus state file.
+ * Uses XDG_RUNTIME_DIR if available, falls back to /tmp.
+ */
+static std::string getStateFilePath() {
+    const char* runtimeDir = std::getenv("XDG_RUNTIME_DIR");
+    if (runtimeDir && runtimeDir[0] != '\0') {
+        return std::string(runtimeDir) + "/hyfocus-state.json";
+    }
+    return "/tmp/hyfocus-state.json";
+}
+
+/**
+ * @brief Write current session state to JSON file for EWW consumption.
+ * Called on state changes and every tick.
+ */
+static void writeStateFile() {
+    std::string path = getStateFilePath();
+    std::ofstream file(path);
+    if (!file.is_open()) {
+        FE_WARN("Failed to open state file for writing: {}", path);
+        return;
+    }
+
+    bool active = g_fe_is_session_active.load();
+    std::string state = "inactive";
+    std::string remaining = "00:00";
+    std::string workspaces = "[]";
+
+    if (active && g_fe_timer) {
+        auto timerState = g_fe_timer->getState();
+        switch (timerState) {
+            case TimerState::Working:
+                state = "working";
+                break;
+            case TimerState::Break:
+                state = "break";
+                break;
+            case TimerState::Paused:
+                state = "paused";
+                break;
+            default:
+                state = "inactive";
+        }
+        remaining = formatTime(g_fe_timer->getRemainingSeconds());
+
+        // Build workspaces array
+        if (g_fe_enforcer) {
+            auto allowed = g_fe_enforcer->getAllowedWorkspaces();
+            std::ostringstream wsStream;
+            wsStream << "[";
+            for (size_t i = 0; i < allowed.size(); i++) {
+                if (i > 0) wsStream << ", ";
+                wsStream << allowed[i];
+            }
+            wsStream << "]";
+            workspaces = wsStream.str();
+        }
+    }
+
+    file << "{\"active\": " << (active ? "true" : "false")
+         << ", \"state\": \"" << state << "\""
+         << ", \"remaining\": \"" << remaining << "\""
+         << ", \"workspaces\": " << workspaces << "}\n";
+
+    file.close();
+}
+
+/**
+ * @brief Remove the state file when session ends.
+ */
+static void removeStateFile() {
+    std::string path = getStateFilePath();
+    std::remove(path.c_str());
 }
 
 void dispatch_startSession(std::string args) {
@@ -116,35 +194,46 @@ void dispatch_startSession(std::string args) {
     // Set up callbacks
     g_fe_timer->setOnWorkStart([]() {
         g_fe_is_break_time = false;
+        writeStateFile();
         showNotification("Focus time! Stay on task.", {0.2, 0.6, 1.0, 1.0});
     });
-    
+
     g_fe_timer->setOnBreakStart([]() {
         g_fe_is_break_time = true;
+        writeStateFile();
         showNotification("Break time! Relax for a moment.", {0.2, 0.8, 0.2, 1.0});
     });
-    
+
     g_fe_timer->setOnSessionComplete([]() {
         g_fe_is_session_active = false;
         g_fe_is_break_time = false;
         disableEnforcementHooks();
+        writeStateFile();  // Write inactive state
         showNotification("Focus session complete! Great work!", {1.0, 0.8, 0.0, 1.0}, 10000);
+    });
+
+    // Set up tick callback to update state file every second
+    g_fe_timer->setOnTick([](int /*minutesRemaining*/, TimerState /*state*/) {
+        writeStateFile();
     });
     
     // Start!
     if (g_fe_timer->start()) {
         g_fe_is_session_active = true;
-        
+
         // Enable enforcement hooks now that session is active
         enableEnforcementHooks();
-        
+
+        // Write initial state file for EWW
+        writeStateFile();
+
         // Build workspace list for notification
         std::string wsStr;
         for (auto id : allowedWorkspaces) {
             if (!wsStr.empty()) wsStr += ", ";
             wsStr += std::to_string(id);
         }
-        
+
         showNotification("Focus session started! Allowed workspaces: " + wsStr);
     } else {
         showError("Failed to start focus session!");
@@ -201,35 +290,40 @@ void dispatch_stopSession(std::string args) {
     g_fe_timer->stop();
     g_fe_is_session_active = false;
     g_fe_is_break_time = false;
-    
+
     // Disable enforcement hooks
     disableEnforcementHooks();
-    
+
+    // Write inactive state for EWW
+    writeStateFile();
+
     int elapsed = g_fe_timer->getElapsedSeconds();
     showNotification("Focus session stopped. Total time: " + formatTime(elapsed));
 }
 
 void dispatch_pauseSession(std::string args) {
     (void)args;
-    
+
     if (!g_fe_is_session_active.load()) {
         showWarning("No focus session is running.");
         return;
     }
-    
+
     g_fe_timer->pause();
+    writeStateFile();
     showNotification("Focus session paused.", {1.0, 0.7, 0.0, 1.0});
 }
 
 void dispatch_resumeSession(std::string args) {
     (void)args;
-    
+
     if (g_fe_timer->getState() != TimerState::Paused) {
         showWarning("Session is not paused.");
         return;
     }
-    
+
     g_fe_timer->resume();
+    writeStateFile();
     showNotification("Focus session resumed!");
 }
 
@@ -360,10 +454,13 @@ void dispatch_confirmStop(std::string args) {
         g_fe_timer->stop();
         g_fe_is_session_active = false;
         g_fe_is_break_time = false;
-        
+
         // Disable enforcement hooks
         disableEnforcementHooks();
-        
+
+        // Write inactive state for EWW
+        writeStateFile();
+
         int elapsed = g_fe_timer->getElapsedSeconds();
         showNotification("Challenge passed! Session stopped. Total time: " + formatTime(elapsed));
     } else {
