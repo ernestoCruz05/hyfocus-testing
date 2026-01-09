@@ -19,6 +19,7 @@ None
 - [ ] **Phase 3: Exception Handling** - Replace catch(...) with specific types
 - [ ] **Phase 4: Memory Safety** - Switch to smart pointers
 - [ ] **Phase 5: Version Check** - Add Hyprland compatibility verification
+- [ ] **Phase 6: EWW Widget UI** - Implement minimal glass-style widget UI for user interaction
 
 ## Phase Details
 
@@ -72,10 +73,30 @@ Key files:
 Key files:
 - `src/main.cpp`: PLUGIN_INIT function
 
+### Phase 6: EWW Widget UI
+**Goal**: Implement a minimal, glass-style EWW widget UI for user-friendly interaction (replacing CLI-only usage)
+**Depends on**: Phase 5
+**Research**: Likely (EWW widget system, Hyprland IPC integration, glass/blur styling)
+**Research topics**: EWW widget configuration, Hyprland IPC commands from EWW, CSS blur/glass effects, widget positioning
+**Plans**: TBD
+
+Requirements:
+- Minimal and clean design with "glass" transparent aesthetic
+- User-configurable appearance
+- Non-intrusive (small footprint, doesn't clutter workflow)
+- Start panel: More complex UI for workspace selection and blocking warnings
+- Distribute EWW configs in repo for easy user setup
+
+Key components:
+- Start panel (workspace selection, blocking warnings)
+- Status indicator (minimal, shows focus state)
+- Configuration system (user customization)
+- EWW widget files (distributed in repo)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -84,3 +105,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 3. Exception Handling | 1/1 | Complete | 2026-01-08 |
 | 4. Memory Safety | 1/1 | Complete | 2026-01-08 |
 | 5. Version Check | 1/1 | Complete | 2026-01-08 |
+| 6. EWW Widget UI | 1/3 | In progress | — |
