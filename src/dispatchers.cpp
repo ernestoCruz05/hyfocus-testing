@@ -152,29 +152,52 @@ void dispatch_startSession(std::string args) {
 }
 
 void dispatch_stopSession(std::string args) {
-    (void)args;  // Unused
+    // FIRST THING: Show that we're in this function
+    HyprlandAPI::addNotification(PHANDLE, "[DEBUG] dispatch_stopSession entered!", CHyprColor{1.0, 0.0, 1.0, 1.0}, 5000);
+    
+    FE_INFO("dispatch_stopSession called with args: '{}'", args);
     
     if (!g_fe_is_session_active.load()) {
         showWarning("No focus session is running.");
         return;
     }
     
+    // Check for force stop (bypasses challenge)
+    bool forceStop = (args.find("force") != std::string::npos);
+    
+    // DEBUG: Show challenge state
+    if (g_fe_exitChallenge) {
+        showNotification("Challenge type: " + std::to_string(static_cast<int>(g_fe_exitChallenge->getChallengeType())) +
+                        ", enabled: " + std::to_string(g_fe_exitChallenge->isEnabled()) +
+                        ", active: " + std::to_string(g_fe_exitChallenge->isChallengeActive()),
+                        {0.5, 0.5, 1.0, 1.0}, 5000);
+    } else {
+        HyprlandAPI::addNotification(PHANDLE, "[DEBUG] g_fe_exitChallenge is NULL!", CHyprColor{1.0, 0.0, 0.0, 1.0}, 5000);
+    }
+    
     // Check if exit challenge is enabled and not already active
-    if (g_fe_exitChallenge && g_fe_exitChallenge->isEnabled()) {
-        if (!g_fe_exitChallenge->isChallengeActive()) {
-            // Start the challenge
-            std::string prompt = g_fe_exitChallenge->initiateChallenge();
-            showWarning(prompt);
-            FE_INFO("Exit challenge initiated");
-            return;  // Don't stop yet, wait for confirmation
-        } else {
-            // Challenge already active, remind user
-            showWarning("Complete the challenge first! Use: hyfocus:confirm <answer>");
-            return;
+    if (!forceStop && g_fe_exitChallenge) {
+        FE_INFO("ExitChallenge exists, isEnabled={}, isActive={}, type={}", 
+                g_fe_exitChallenge->isEnabled(), 
+                g_fe_exitChallenge->isChallengeActive(),
+                static_cast<int>(g_fe_exitChallenge->getChallengeType()));
+        
+        if (g_fe_exitChallenge->isEnabled()) {
+            if (!g_fe_exitChallenge->isChallengeActive()) {
+                // Start the challenge
+                std::string prompt = g_fe_exitChallenge->initiateChallenge();
+                showWarning(prompt);
+                FE_INFO("Exit challenge initiated: {}", prompt);
+                return;  // Don't stop yet, wait for confirmation
+            } else {
+                // Challenge already active, remind user
+                showWarning("Complete the challenge first! Use: hyfocus:confirm <answer>");
+                return;
+            }
         }
     }
     
-    // No challenge or challenge disabled - stop immediately
+    // No challenge, challenge disabled, or force stop - stop immediately
     g_fe_timer->stop();
     g_fe_is_session_active = false;
     g_fe_is_break_time = false;

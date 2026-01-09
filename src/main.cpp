@@ -67,93 +67,6 @@ APICALL EXPORT std::string PLUGIN_API_VERSION() {
 }
 
 /**
- * @brief Load configuration values from Hyprland config.
- */
-static void loadConfig() {
-    // Integer configs
-    static const auto* pTotalDuration = (Hyprlang::INT* const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:total_duration")->getDataStaticPtr());
-    static const auto* pWorkInterval = (Hyprlang::INT* const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:work_interval")->getDataStaticPtr());
-    static const auto* pBreakInterval = (Hyprlang::INT* const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:break_interval")->getDataStaticPtr());
-    static const auto* pEnforceDuringBreak = (Hyprlang::INT* const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:enforce_during_break")->getDataStaticPtr());
-    static const auto* pShakeIntensity = (Hyprlang::INT* const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:shake_intensity")->getDataStaticPtr());
-    static const auto* pShakeDuration = (Hyprlang::INT* const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:shake_duration")->getDataStaticPtr());
-    static const auto* pShakeFrequency = (Hyprlang::INT* const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:shake_frequency")->getDataStaticPtr());
-    static const auto* pBlockSpawn = (Hyprlang::INT* const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:block_spawn")->getDataStaticPtr());
-    static const auto* pExitChallengeType = (Hyprlang::INT* const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exit_challenge_type")->getDataStaticPtr());
-    
-    // String configs
-    static const auto* pExceptionClasses = (Hyprlang::STRING const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exception_classes")->getDataStaticPtr());
-    static const auto* pSpawnWhitelist = (Hyprlang::STRING const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:spawn_whitelist")->getDataStaticPtr());
-    static const auto* pExitChallengePhrase = (Hyprlang::STRING const*)
-        (HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exit_challenge_phrase")->getDataStaticPtr());
-    
-    // Apply integer configs
-    g_fe_total_duration = **pTotalDuration;
-    g_fe_work_interval = **pWorkInterval;
-    g_fe_break_interval = **pBreakInterval;
-    g_fe_enforce_during_break = **pEnforceDuringBreak != 0;
-    g_fe_shake_intensity = **pShakeIntensity;
-    g_fe_shake_duration = **pShakeDuration;
-    g_fe_shake_frequency = **pShakeFrequency;
-    g_fe_block_spawn = **pBlockSpawn != 0;
-    g_fe_exit_challenge_type = **pExitChallengeType;
-    
-    // Parse exception classes (comma-separated)
-    std::string exceptionStr = *pExceptionClasses;
-    if (!exceptionStr.empty()) {
-        std::stringstream ss(exceptionStr);
-        std::string token;
-        while (std::getline(ss, token, ',')) {
-            // Trim whitespace
-            size_t start = token.find_first_not_of(" \t");
-            size_t end = token.find_last_not_of(" \t");
-            if (start != std::string::npos && end != std::string::npos) {
-                token = token.substr(start, end - start + 1);
-                g_fe_exception_classes.insert(token);
-                FE_DEBUG("Added exception class from config: {}", token);
-            }
-        }
-    }
-    
-    // Parse spawn whitelist (comma-separated)
-    std::string spawnWhitelistStr = *pSpawnWhitelist;
-    if (!spawnWhitelistStr.empty()) {
-        std::stringstream ss(spawnWhitelistStr);
-        std::string token;
-        while (std::getline(ss, token, ',')) {
-            size_t start = token.find_first_not_of(" \t");
-            size_t end = token.find_last_not_of(" \t");
-            if (start != std::string::npos && end != std::string::npos) {
-                token = token.substr(start, end - start + 1);
-                g_fe_spawn_whitelist.insert(token);
-                FE_DEBUG("Added spawn whitelist from config: {}", token);
-            }
-        }
-    }
-    
-    // Load exit challenge phrase
-    g_fe_exit_challenge_phrase = *pExitChallengePhrase;
-    if (g_fe_exit_challenge_phrase.empty()) {
-        g_fe_exit_challenge_phrase = "I want to stop focusing";
-    }
-    
-    FE_INFO("Config loaded: {}min total, {}min work, {}min break, spawn_block={}, exit_challenge={}",
-            g_fe_total_duration, g_fe_work_interval, g_fe_break_interval,
-            g_fe_block_spawn, g_fe_exit_challenge_type);
-}
-
-/**
  * @brief Validate configuration values and warn about issues.
  */
 static void validateConfig() {
@@ -234,17 +147,103 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     
     #undef CONF
     
+    // Register a callback that fires after config is reloaded
+    static auto configReloadedCallback = HyprlandAPI::registerCallbackDynamic(
+        PHANDLE, "configReloaded", [](void* self, SCallbackInfo& info, std::any data) {
+            (void)self; (void)info; (void)data;
+            
+            // Re-read config values
+            static const auto* pExitChallengeType = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exit_challenge_type")->getDataStaticPtr());
+            static const auto* pBlockSpawn = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:block_spawn")->getDataStaticPtr());
+            
+            g_fe_exit_challenge_type = **pExitChallengeType;
+            g_fe_block_spawn = **pBlockSpawn != 0;
+            
+            // Reconfigure exit challenge
+            if (g_fe_exitChallenge) {
+                ChallengeType challengeType = static_cast<ChallengeType>(g_fe_exit_challenge_type);
+                g_fe_exitChallenge->configure(challengeType, g_fe_exit_challenge_phrase);
+            }
+            
+            HyprlandAPI::addNotification(PHANDLE, 
+                "[hyfocus] Config reloaded: exit_challenge=" + std::to_string(g_fe_exit_challenge_type),
+                CHyprColor{0.2, 1.0, 0.6, 1.0}, 3000);
+        }
+    );
+    
     // Force a config reload to populate our values
     HyprlandAPI::reloadConfig();
     
-    // Load and validate configuration
-    loadConfig();
+    // Read config values DIRECTLY here (matching hycov's working pattern)
+    static const auto* pTotalDuration = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:total_duration")->getDataStaticPtr());
+    static const auto* pWorkInterval = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:work_interval")->getDataStaticPtr());
+    static const auto* pBreakInterval = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:break_interval")->getDataStaticPtr());
+    static const auto* pEnforceDuringBreak = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:enforce_during_break")->getDataStaticPtr());
+    static const auto* pShakeIntensity = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:shake_intensity")->getDataStaticPtr());
+    static const auto* pShakeDuration = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:shake_duration")->getDataStaticPtr());
+    static const auto* pShakeFrequency = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:shake_frequency")->getDataStaticPtr());
+    static const auto* pBlockSpawn = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:block_spawn")->getDataStaticPtr());
+    static const auto* pExitChallengeType = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exit_challenge_type")->getDataStaticPtr());
+    static const auto* pExceptionClasses = (Hyprlang::STRING const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exception_classes")->getDataStaticPtr());
+    static const auto* pSpawnWhitelist = (Hyprlang::STRING const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:spawn_whitelist")->getDataStaticPtr());
+    static const auto* pExitChallengePhrase = (Hyprlang::STRING const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exit_challenge_phrase")->getDataStaticPtr());
+    
+    // Apply values to globals
+    g_fe_total_duration = **pTotalDuration;
+    g_fe_work_interval = **pWorkInterval;
+    g_fe_break_interval = **pBreakInterval;
+    g_fe_enforce_during_break = **pEnforceDuringBreak != 0;
+    g_fe_shake_intensity = **pShakeIntensity;
+    g_fe_shake_duration = **pShakeDuration;
+    g_fe_shake_frequency = **pShakeFrequency;
+    g_fe_block_spawn = **pBlockSpawn != 0;
+    g_fe_exit_challenge_type = **pExitChallengeType;
+    g_fe_exit_challenge_phrase = *pExitChallengePhrase;
+    
+    // DEBUG: Show loaded config
+    HyprlandAPI::addNotification(PHANDLE, 
+        "[hyfocus] Config: exit_challenge=" + std::to_string(g_fe_exit_challenge_type) +
+        ", block_spawn=" + std::to_string(g_fe_block_spawn ? 1 : 0),
+        CHyprColor{0.2, 0.6, 1.0, 1.0}, 5000);
+    
+    // Parse exception classes
+    std::string exceptionStr = *pExceptionClasses;
+    if (!exceptionStr.empty()) {
+        std::stringstream ss(exceptionStr);
+        std::string token;
+        while (std::getline(ss, token, ',')) {
+            size_t start = token.find_first_not_of(" \t");
+            size_t end = token.find_last_not_of(" \t");
+            if (start != std::string::npos && end != std::string::npos) {
+                g_fe_exception_classes.insert(token.substr(start, end - start + 1));
+            }
+        }
+    }
+    
+    // Parse spawn whitelist
+    std::string spawnWhitelistStr = *pSpawnWhitelist;
+    if (!spawnWhitelistStr.empty()) {
+        std::stringstream ss(spawnWhitelistStr);
+        std::string token;
+        while (std::getline(ss, token, ',')) {
+            size_t start = token.find_first_not_of(" \t");
+            size_t end = token.find_last_not_of(" \t");
+            if (start != std::string::npos && end != std::string::npos) {
+                g_fe_spawn_whitelist.insert(token.substr(start, end - start + 1));
+            }
+        }
+    }
+    
+    FE_INFO("Config loaded: exit_challenge_type={}, block_spawn={}", 
+            g_fe_exit_challenge_type, g_fe_block_spawn);
+    
+    // Validate configuration
     validateConfig();
     
     // Initialize core components
     g_fe_timer = new FocusTimer();
     g_fe_enforcer = new WorkspaceEnforcer();
-    g_fe_shaker = new WindowShake();
+    g_fe_shaker = new WindowShake();;
     g_fe_exitChallenge = new ExitChallenge();
     
     // Configure components
@@ -299,14 +298,19 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 APICALL EXPORT void PLUGIN_EXIT() {
     FE_INFO("HyFocus plugin shutting down...");
     
-    // Stop any running session
-    if (g_fe_timer && g_fe_is_session_active.load()) {
+    // First, mark session as inactive to stop all processing
+    g_fe_is_session_active = false;
+    
+    // Stop any running timer (do this BEFORE deleting)
+    if (g_fe_timer) {
         g_fe_timer->stop();
     }
     
-    // Stop any ongoing shake animation
+    // Stop any ongoing shake animation and wait for thread
     if (g_fe_shaker) {
         g_fe_shaker->stopShake();
+        // Give thread time to finish
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     
     // Cancel any pending exit challenge
@@ -314,10 +318,13 @@ APICALL EXPORT void PLUGIN_EXIT() {
         g_fe_exitChallenge->cancelChallenge();
     }
     
-    // Unregister hooks
+    // Unregister hooks BEFORE deleting objects they might reference
     unregisterEventHooks();
     
-    // Clean up resources
+    // Small delay to ensure hooks are fully unregistered
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    
+    // Now safe to delete
     delete g_fe_timer;
     delete g_fe_enforcer;
     delete g_fe_shaker;
