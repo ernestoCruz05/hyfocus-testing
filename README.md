@@ -59,9 +59,11 @@ HyFocus includes beautiful, minimal EWW widgets for a native-feeling experience.
 | **Flash** | Quick "Stay focused" overlay when attempting blocked actions |
 | **Backdrop** | Fullscreen blur behind modal widgets |
 
-### Screenshots
+### Small showcase video
 
-> TODO: Add screenshots
+https://github.com/user-attachments/assets/a09f5c13-9992-4348-a09c-50d9ba2f6144
+
+
 
 ### Setting Up EWW Widgets
 
