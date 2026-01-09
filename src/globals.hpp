@@ -122,6 +122,37 @@ inline void showWarning(const std::string& msg) {
     showNotification(msg, {1.0, 0.7, 0.0, 1.0}, 4000);
 }
 
+// Named pipe for EWW IPC
+inline std::string g_fe_pipe_path = "";
+
+inline void initPipe() {
+    const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
+    if (!runtimeDir) runtimeDir = "/tmp";
+    g_fe_pipe_path = std::string(runtimeDir) + "/hyfocus.pipe";
+    
+    // Remove old pipe if exists, create new one
+    unlink(g_fe_pipe_path.c_str());
+    mkfifo(g_fe_pipe_path.c_str(), 0666);
+}
+
+inline void writeToPipe(const std::string& json) {
+    if (g_fe_pipe_path.empty()) return;
+    
+    // Open in non-blocking mode, write, close immediately
+    int fd = open(g_fe_pipe_path.c_str(), O_WRONLY | O_NONBLOCK);
+    if (fd >= 0) {
+        std::string msg = json + "\n";
+        write(fd, msg.c_str(), msg.size());
+        close(fd);
+    }
+}
+
+inline void cleanupPipe() {
+    if (!g_fe_pipe_path.empty()) {
+        unlink(g_fe_pipe_path.c_str());
+    }
+}
+
 inline void writeStateFile(bool active, const std::string& state, int remainingSecs, const std::vector<WORKSPACEID>& workspaces = {}) {
     int mins = remainingSecs / 60;
     int secs = remainingSecs % 60;
@@ -160,36 +191,4 @@ inline void removeStateFile() {
     if (!runtimeDir) runtimeDir = "/tmp";
     std::string path = std::string(runtimeDir) + "/hyfocus-state.json";
     std::remove(path.c_str());
-}
-
-// Named pipe for EWW IPC
-inline std::string g_fe_pipe_path = "";
-
-inline void initPipe() {
-    const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
-    if (!runtimeDir) runtimeDir = "/tmp";
-    g_fe_pipe_path = std::string(runtimeDir) + "/hyfocus.pipe";
-    
-    // Remove old pipe if exists, create new one
-    unlink(g_fe_pipe_path.c_str());
-    mkfifo(g_fe_pipe_path.c_str(), 0666);
-}
-
-inline void writeToPipe(const std::string& json) {
-    if (g_fe_pipe_path.empty()) return;
-    
-    // Open in non-blocking mode, write, close immediately
-    // This prevents blocking if no one is reading
-    int fd = open(g_fe_pipe_path.c_str(), O_WRONLY | O_NONBLOCK);
-    if (fd >= 0) {
-        std::string msg = json + "\n";
-        write(fd, msg.c_str(), msg.size());
-        close(fd);
-    }
-}
-
-inline void cleanupPipe() {
-    if (!g_fe_pipe_path.empty()) {
-        unlink(g_fe_pipe_path.c_str());
-    }
 }
