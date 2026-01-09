@@ -1,0 +1,54 @@
+; HyFocus EWW Main Configuration
+; Widget definitions for focus session management
+
+; ============================================================
+; Shared Variables
+; ============================================================
+; These are populated by polling/listening scripts
+
+; HyFocus session state
+(defvar hyfocus-active false)
+(defvar hyfocus-state "inactive")  ; "working", "break", "paused", "inactive"
+(defvar hyfocus-remaining "00:00")
+(defvar hyfocus-workspaces "[]")
+
+; ============================================================
+; Includes
+; ============================================================
+; Window and widget definitions will be added in later plans
+
+; Include windows (added in 06-02)
+; (include "windows/status.yuck")
+; (include "windows/start-panel.yuck")
+; (include "windows/warning.yuck")
+
+; Include widgets (added in 06-02)
+; (include "widgets/timer.yuck")
+; (include "widgets/workspace-selector.yuck")
+; (include "widgets/controls.yuck")
+
+; ============================================================
+; Placeholder Test Window
+; ============================================================
+; A minimal window to verify EWW daemon starts correctly
+; This will be replaced by actual widgets in later plans
+
+(defwindow hyfocus-test
+  :monitor 0
+  :geometry (geometry
+    :x "10px"
+    :y "10px"
+    :width "200px"
+    :height "50px"
+    :anchor "top right")
+  :stacking "overlay"
+  :exclusive false
+  :focusable false
+  :namespace "hyfocus-test"
+  (box
+    :class "glass-panel hyfocus-widget p-md"
+    :orientation "horizontal"
+    :space-evenly false
+    (label
+      :class "text-secondary"
+      :text "HyFocus: ${hyfocus-state}")))

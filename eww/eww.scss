@@ -1,0 +1,129 @@
+// HyFocus EWW Main Stylesheet
+
+// Import partials
+@import 'styles/variables';
+@import 'styles/glass';
+
+// Reset all GTK styles
+* {
+  all: unset;
+}
+
+// Base styles
+.hyfocus-widget {
+  font-family: $font-family;
+  font-size: $font-size-md;
+  color: $text;
+}
+
+// Text styles
+.text-primary {
+  color: $text;
+}
+
+.text-secondary {
+  color: $subtext0;
+}
+
+.text-muted {
+  color: $overlay1;
+}
+
+// Status text colors
+.text-working {
+  color: $green;
+}
+
+.text-break {
+  color: $blue;
+}
+
+.text-paused {
+  color: $yellow;
+}
+
+.text-warning {
+  color: $red;
+}
+
+// Size classes
+.text-sm {
+  font-size: $font-size-sm;
+}
+
+.text-md {
+  font-size: $font-size-md;
+}
+
+.text-lg {
+  font-size: $font-size-lg;
+}
+
+.text-xl {
+  font-size: $font-size-xl;
+}
+
+// Padding/margin utilities
+.p-sm {
+  padding: $padding-sm;
+}
+
+.p-md {
+  padding: $padding-md;
+}
+
+.p-lg {
+  padding: $padding-lg;
+}
+
+.m-sm {
+  margin: $margin-sm;
+}
+
+.m-md {
+  margin: $margin-md;
+}
+
+.m-lg {
+  margin: $margin-lg;
+}
+
+// Button base
+.hyfocus-button {
+  padding: $padding-sm $padding-md;
+  border-radius: $border-radius-sm;
+  background-color: rgba($surface0, 0.8);
+  border: 1px solid $glass-border-color;
+  color: $text;
+  font-family: $font-family;
+  font-size: $font-size-md;
+  transition: background-color 200ms ease;
+
+  &:hover {
+    background-color: rgba($surface1, 0.9);
+  }
+
+  &:active {
+    background-color: rgba($surface2, 0.9);
+  }
+}
+
+.hyfocus-button-primary {
+  @extend .hyfocus-button;
+  background-color: rgba($blue, 0.3);
+  border-color: rgba($blue, 0.5);
+
+  &:hover {
+    background-color: rgba($blue, 0.4);
+  }
+}
+
+.hyfocus-button-danger {
+  @extend .hyfocus-button;
+  background-color: rgba($red, 0.3);
+  border-color: rgba($red, 0.5);
+
+  &:hover {
+    background-color: rgba($red, 0.4);
+  }
+}
