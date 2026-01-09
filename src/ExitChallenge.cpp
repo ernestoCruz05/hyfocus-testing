@@ -1,7 +1,3 @@
-/**
- * @file ExitChallenge.cpp
- * @brief Implementation of the exit challenge minigame.
- */
 #include "ExitChallenge.hpp"
 #include <algorithm>
 #include <cctype>

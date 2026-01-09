@@ -1,7 +1,3 @@
-/**
- * @file WorkspaceEnforcer.cpp
- * @brief Implementation of workspace restriction logic.
- */
 #include "WorkspaceEnforcer.hpp"
 
 void WorkspaceEnforcer::setAllowedWorkspaces(const std::vector<WORKSPACEID>& workspaceIds) {

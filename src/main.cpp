@@ -1,58 +1,3 @@
-/**
- * @file main.cpp
- * @brief Plugin entry point for HyFocus.
- * 
- * HyFocus is a Hyprland plugin that implements a Pomodoro-style
- * focus timer with workspace restriction enforcement. During active
- * focus sessions, the plugin prevents switching to non-whitelisted
- * workspaces, helping users maintain focus on their tasks.
- * 
- * ## Features
- * 
- * - **Configurable Timer**: Set total duration, work intervals, and break intervals
- * - **Workspace Locking**: Restrict access to specific workspaces during focus time
- * - **Visual Feedback**: Window shake animation when switch is blocked
- * - **Exception Support**: Floating windows and specific classes (e.g., EWW) bypass locks
- * - **Break Mode**: Optionally relax restrictions during break intervals
- * 
- * ## Usage
- * 
- * Add keybinds in your Hyprland config:
- * ```
- * bind = SUPER, F, hyfocus:toggle, 3,5  # Toggle focus mode on workspaces 3 and 5
- * bind = SUPER SHIFT, F, hyfocus:stop,  # Stop focus session
- * bind = SUPER, S, hyfocus:status,      # Show current status
- * ```
- * 
- * Configure in `hyprland.conf`:
- * ```
- * plugin {
- *     hyfocus {
- *         total_duration = 120          # 2 hours total
- *         work_interval = 25            # 25 minute work blocks
- *         break_interval = 5            # 5 minute breaks
- *         enforce_during_break = false  # Allow any workspace during breaks
- *         shake_intensity = 15          # Pixels to shake on denied switch
- *         shake_duration = 300          # Shake animation duration (ms)
- *         exception_classes = eww,rofi  # Window classes that bypass enforcement
- *     }
- * }
- * ```
- * 
- * ## Architecture
- * 
- * The plugin consists of several components:
- * 
- * - **FocusTimer**: Manages work/break intervals with callbacks
- * - **WorkspaceEnforcer**: Maintains allowed workspace list and validates switches
- * - **WindowShake**: Provides visual feedback when switches are blocked
- * - **Dispatchers**: User-facing commands for controlling the system
- * - **EventHooks**: Intercepts workspace change attempts
- * 
- * @author Your Name
- * @license MIT
- */
-
 #include "globals.hpp"
 #include "dispatchers.hpp"
 #include "eventhooks.hpp"
@@ -61,14 +6,10 @@
 #include "WindowShake.hpp"
 #include "ExitChallenge.hpp"
 
-// Required: Return the Hyprland API version we're built against
 APICALL EXPORT std::string PLUGIN_API_VERSION() {
     return HYPRLAND_API_VERSION;
 }
 
-/**
- * @brief Validate configuration values and warn about issues.
- */
 static void validateConfig() {
     std::vector<std::string> warnings;
     

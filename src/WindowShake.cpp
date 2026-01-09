@@ -1,11 +1,3 @@
-/**
- * @file WindowShake.cpp
- * @brief Implementation of the window shake animation.
- * 
- * This file implements the visual feedback mechanism that shakes a window
- * when a workspace switch is denied. The animation uses smooth sinusoidal
- * motion to create a natural "denied" effect.
- */
 #include "WindowShake.hpp"
 #include <cmath>
 

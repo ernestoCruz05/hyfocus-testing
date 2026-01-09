@@ -1,29 +1,3 @@
-/**
- * @file eventhooks.cpp
- * @brief Event callback implementations for workspace enforcement.
- * 
- * This file contains the event callback logic that monitors workspace switches
- * and reverts unauthorized ones when focus enforcement is active. Rather than
- * hooking into Hyprland's internal functions (which has proven unstable), we
- * use the callback system to detect changes AFTER they happen and revert if needed.
- * 
- * ## Event Enforcement Flow (Revert Strategy)
- * 
- * When a user attempts to switch workspaces (via keybind, mouse, etc.):
- * 
- * 1. Hyprland performs the workspace switch normally
- * 2. Our callback (`onWorkspaceChange`) is invoked AFTER the switch
- * 3. We check if focus enforcement is active via `WorkspaceEnforcer`
- * 4. If the new workspace is ALLOWED:
- *    - Update `lastValidWorkspace` for tracking
- * 5. If the new workspace is NOT ALLOWED:
- *    - Trigger the window shake animation for visual feedback
- *    - Show a warning notification  
- *    - Immediately dispatch a workspace switch back to the last valid workspace
- * 
- * This "revert" approach is safer than function hooking because we don't
- * interfere with Hyprland's internal function call chain.
- */
 #include "eventhooks.hpp"
 #include "dispatchers.hpp"
 #include "FocusTimer.hpp"
@@ -32,15 +6,8 @@
 
 #include <stdexcept>
 
-// Revert guard to prevent infinite loops
 static std::atomic<bool> g_isReverting{false};
 
-/**
- * @brief Callback for workspace change events (post-change notification).
- * 
- * This callback is called AFTER a workspace change has occurred.
- * If the new workspace is not allowed, we revert back to the last valid one.
- */
 static void onWorkspaceChange(void* self, SCallbackInfo& info, std::any data) {
     (void)self;
     (void)info;

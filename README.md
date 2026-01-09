@@ -79,13 +79,7 @@ HyFocus includes beautiful, minimal EWW widgets for a native-feeling experience.
    cp -r /path/to/hyfocus/eww ~/.config/hyfocus-eww
    ```
 
-3. **Update the paths** in the scripts to match your config location:
-   ```bash
-   # Edit eww/scripts/* and update EWW_CMD path
-   EWW_CMD="eww -c ~/.config/hyfocus-eww"
-   ```
-
-4. **Add layerrules** to your `hyprland.conf` for blur effects:
+3. **Add layerrules** to your `hyprland.conf` for blur effects:
    ```bash
    # HyFocus EWW blur (Hyprland 0.53+)
    layerrule = blur on, match:namespace hyfocus-flash
@@ -100,7 +94,7 @@ HyFocus includes beautiful, minimal EWW widgets for a native-feeling experience.
    layerrule = ignore_alpha 0.3, match:namespace hyfocus-status
    ```
 
-5. **Enable EWW integration** in the plugin config:
+4. **Enable EWW integration** in the plugin config:
    ```bash
    plugin {
        hyfocus {
@@ -110,12 +104,12 @@ HyFocus includes beautiful, minimal EWW widgets for a native-feeling experience.
    }
    ```
 
-6. **Start the EWW daemon** (add to autostart):
+5. **Start the EWW daemon** (add to autostart):
    ```bash
    exec-once = eww daemon -c ~/.config/hyfocus-eww
    ```
 
-7. **Add keybinds**:
+6. **Add keybinds**:
    ```bash
    # Open start panel (select workspaces & duration with UI)
    bind = SUPER, F, exec, ~/.config/hyfocus-eww/scripts/open-start

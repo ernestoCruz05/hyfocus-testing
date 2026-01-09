@@ -1,21 +1,8 @@
-/**
- * @file dispatchers.cpp
- * @brief Implementation of HyFocus dispatcher commands.
- * 
- * This file contains the implementation of all user-facing commands
- * for controlling the focus enforcement system. Commands can be
- * triggered via keybinds or hyprctl.
- */
 #include "dispatchers.hpp"
 #include "eventhooks.hpp"
 #include "FocusTimer.hpp"
 #include <sstream>
 
-/**
- * @brief Parse a comma-separated list of workspace IDs.
- * @param input String like "3,5,7" or "3, 5, 7"
- * @return Vector of parsed workspace IDs
- */
 static std::vector<WORKSPACEID> parseWorkspaceList(const std::string& input) {
     std::vector<WORKSPACEID> result;
     std::stringstream ss(input);
@@ -68,7 +55,6 @@ void dispatch_startSession(std::string args) {
     }
     
     // Parse args: "workspaces@duration" or just "workspaces"
-    // Example: "4,5@25" means workspaces 4,5 with 25 minute duration
     std::string workspaceStr = args;
     int sessionDuration = g_fe_work_interval; // Default from config
     

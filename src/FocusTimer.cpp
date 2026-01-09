@@ -1,11 +1,3 @@
-/**
- * @file FocusTimer.cpp
- * @brief Implementation of the FocusTimer class.
- * 
- * The timer runs a background thread that sleeps in short intervals,
- * checking for state changes and invoking callbacks. This design allows
- * for responsive pause/stop operations while minimizing CPU usage.
- */
 #include "FocusTimer.hpp"
 
 FocusTimer::FocusTimer() = default;
