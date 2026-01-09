@@ -132,8 +132,7 @@ inline void initPipe() {
     
     // Remove old pipe if exists, create new one
     unlink(g_fe_pipe_path.c_str());
-    int ret = mkfifo(g_fe_pipe_path.c_str(), 0666);
-    FE_INFO("initPipe: path={}, mkfifo ret={}", g_fe_pipe_path, ret);
+    mkfifo(g_fe_pipe_path.c_str(), 0666);
 }
 
 inline void writeToPipe(const std::string& json) {
