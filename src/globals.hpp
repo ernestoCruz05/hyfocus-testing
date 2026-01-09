@@ -15,6 +15,8 @@
 // Include std headers BEFORE the private->public hack to avoid template issues
 #include <atomic>
 #include <chrono>
+#include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <functional>
 #include <memory>
@@ -158,4 +160,43 @@ inline void showError(const std::string& msg) {
 
 inline void showWarning(const std::string& msg) {
     showNotification(msg, {1.0, 0.7, 0.0, 1.0}, 4000);
+}
+
+// Write state file for EWW polling
+inline void writeStateFile(bool active, const std::string& state, int remainingSecs, const std::vector<WORKSPACEID>& workspaces = {}) {
+    // Get runtime dir
+    const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
+    if (!runtimeDir) runtimeDir = "/tmp";
+    
+    std::string path = std::string(runtimeDir) + "/hyfocus-state.json";
+    std::ofstream f(path);
+    if (!f.is_open()) return;
+    
+    // Format remaining time as MM:SS
+    int mins = remainingSecs / 60;
+    int secs = remainingSecs % 60;
+    char timeStr[8];
+    snprintf(timeStr, sizeof(timeStr), "%02d:%02d", mins, secs);
+    
+    // Build workspace array
+    std::string wsArr = "[";
+    for (size_t i = 0; i < workspaces.size(); ++i) {
+        if (i > 0) wsArr += ",";
+        wsArr += std::to_string(workspaces[i]);
+    }
+    wsArr += "]";
+    
+    f << "{\"active\": " << (active ? "true" : "false")
+      << ", \"state\": \"" << state << "\""
+      << ", \"remaining\": \"" << timeStr << "\""
+      << ", \"workspaces\": " << wsArr << "}";
+    f.close();
+}
+
+// Remove state file when session ends
+inline void removeStateFile() {
+    const char* runtimeDir = getenv("XDG_RUNTIME_DIR");
+    if (!runtimeDir) runtimeDir = "/tmp";
+    std::string path = std::string(runtimeDir) + "/hyfocus-state.json";
+    std::remove(path.c_str());
 }

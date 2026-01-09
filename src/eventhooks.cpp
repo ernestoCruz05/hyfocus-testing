@@ -90,14 +90,22 @@ static void onWorkspaceChange(void* self, SCallbackInfo& info, std::any data) {
         }
         
         // Check if this workspace is allowed
+        std::ofstream dbg2("/tmp/hyfocus_debug.log", std::ios::app);
+        dbg2 << "checking isAllowed, enforcer=" << (g_fe_enforcer != nullptr) << std::endl;
+        
         if (g_fe_enforcer && g_fe_enforcer->isWorkspaceAllowed(newWsId)) {
             g_fe_enforcer->setLastValidWorkspace(newWsId);
+            dbg2 << "allowed, returning" << std::endl;
+            dbg2.close();
             FE_DEBUG("Allowed switch to workspace {}", newWsId);
             return;
         }
         
         // BLOCKED! Revert to last valid workspace
         WORKSPACEID lastValid = g_fe_enforcer ? g_fe_enforcer->getLastValidWorkspace() : 1;
+        dbg2 << "BLOCKED! reverting to " << lastValid << std::endl;
+        dbg2 << "use_eww=" << g_fe_use_eww_notifications << " path=" << g_fe_eww_config_path << std::endl;
+        dbg2.close();
         FE_INFO("Blocked switch to workspace {}, reverting to {}", newWsId, lastValid);
         
         // Trigger shake animation
@@ -180,6 +188,13 @@ static void hkSpawn(std::string args) {
     std::transform(argsLower.begin(), argsLower.end(), argsLower.begin(),
                    [](unsigned char c) { return std::tolower(c); });
     
+    // Debug whitelist check
+    std::ofstream dbg("/tmp/hyfocus_debug.log", std::ios::app);
+    dbg << "hkSpawn: args='" << args << "' whitelist_size=" << g_fe_spawn_whitelist.size() << std::endl;
+    for (const auto& item : g_fe_spawn_whitelist) {
+        dbg << "  whitelist item: '" << item << "'" << std::endl;
+    }
+    
     for (const auto& allowed : g_fe_spawn_whitelist) {
         std::string allowedLower = allowed;
         std::transform(allowedLower.begin(), allowedLower.end(), allowedLower.begin(),
@@ -187,6 +202,8 @@ static void hkSpawn(std::string args) {
         
         if (argsLower.find(allowedLower) != std::string::npos) {
             // Whitelisted app found, allow spawn
+            dbg << "  ALLOWED: '" << allowed << "' found in args" << std::endl;
+            dbg.close();
             FE_DEBUG("Spawn allowed (whitelisted): {}", args);
             if (g_fe_pSpawnHook && g_fe_pSpawnHook->m_original) {
                 ((void(*)(std::string))g_fe_pSpawnHook->m_original)(args);
@@ -194,6 +211,8 @@ static void hkSpawn(std::string args) {
             return;
         }
     }
+    dbg << "  BLOCKED - no whitelist match" << std::endl;
+    dbg.close();
     
     // BLOCKED! Trigger visual feedback
     FE_INFO("Blocked spawn: {}", args);
@@ -294,16 +313,27 @@ static bool g_spawnHooked = false;
 void enableEnforcementHooks() {
     FE_INFO("Enabling enforcement hooks...");
     
+    // Debug
+    std::ofstream dbg("/tmp/hyfocus_debug.log", std::ios::app);
+    dbg << "enableEnforcementHooks: block_spawn=" << g_fe_block_spawn 
+        << " pSpawnHook=" << (g_fe_pSpawnHook != nullptr)
+        << " already_hooked=" << g_spawnHooked << std::endl;
+    
     // Workspace enforcement is always active via callback - no hook needed
     
     if (g_fe_block_spawn && g_fe_pSpawnHook && !g_spawnHooked) {
         if (g_fe_pSpawnHook->hook()) {
             g_spawnHooked = true;
+            dbg << "Spawn hook ENABLED" << std::endl;
             FE_INFO("Enabled spawn hook");
         } else {
+            dbg << "Spawn hook FAILED to enable" << std::endl;
             FE_ERR("Failed to enable spawn hook");
         }
+    } else {
+        dbg << "Spawn hook NOT enabled (conditions not met)" << std::endl;
     }
+    dbg.close();
 }
 
 void disableEnforcementHooks() {

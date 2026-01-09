@@ -135,14 +135,14 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     
     // EWW integration settings
     CONF("use_eww_notifications", 1L);   // Use EWW widgets instead of Hyprland notifications
-    CONF("eww_config_path", "");         // Path to EWW config directory
+    CONF("eww_config_path", "NONE");     // Path to EWW config directory (set to actual path to enable)
     
     // Exception classes (comma-separated string)
     CONF("exception_classes", "eww,rofi,wofi,dmenu,ulauncher");
     
     // Spawn blocking settings
     CONF("block_spawn", 1L);          // Block app launching by default
-    CONF("spawn_whitelist", "");      // Apps allowed to launch (comma-separated)
+    CONF("spawn_whitelist", "NONE");  // Apps allowed to launch (comma-separated)
     
     // Exit challenge settings (makes stopping annoying to discourage quitting)
     // 0 = disabled, 1 = type phrase, 2 = math problem, 3 = countdown confirmations
@@ -159,9 +159,16 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
             // Re-read config values
             static const auto* pExitChallengeType = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:exit_challenge_type")->getDataStaticPtr());
             static const auto* pBlockSpawn = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:block_spawn")->getDataStaticPtr());
+            static const auto* pEwwConfigPath = (Hyprlang::STRING const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:eww_config_path")->getDataStaticPtr());
+            static const auto* pUseEwwNotifications = (Hyprlang::INT* const*)(HyprlandAPI::getConfigValue(PHANDLE, "plugin:hyfocus:use_eww_notifications")->getDataStaticPtr());
             
             g_fe_exit_challenge_type = **pExitChallengeType;
             g_fe_block_spawn = **pBlockSpawn != 0;
+            g_fe_use_eww_notifications = **pUseEwwNotifications != 0;
+            
+            // Handle "NONE" as empty string
+            std::string ewwPath = *pEwwConfigPath;
+            g_fe_eww_config_path = (ewwPath == "NONE") ? "" : ewwPath;
             
             // Reconfigure exit challenge
             if (g_fe_exitChallenge) {
@@ -169,9 +176,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
                 g_fe_exitChallenge->configure(challengeType, g_fe_exit_challenge_phrase);
             }
             
-            HyprlandAPI::addNotification(PHANDLE, 
-                "[hyfocus] Config reloaded: exit_challenge=" + std::to_string(g_fe_exit_challenge_type),
-                CHyprColor{0.2, 1.0, 0.6, 1.0}, 3000);
+            // Debug
+            std::ofstream dbg("/tmp/hyfocus_debug.log", std::ios::app);
+            dbg << "configReloaded: eww_path='" << g_fe_eww_config_path << "'" << std::endl;
+            dbg.close();
         }
     );
     
@@ -206,7 +214,16 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     g_fe_exit_challenge_type = **pExitChallengeType;
     g_fe_exit_challenge_phrase = *pExitChallengePhrase;
     g_fe_use_eww_notifications = **pUseEwwNotifications != 0;
-    g_fe_eww_config_path = *pEwwConfigPath;
+    
+    // Handle "NONE" as empty string for eww_config_path
+    std::string ewwPath = *pEwwConfigPath;
+    g_fe_eww_config_path = (ewwPath == "NONE") ? "" : ewwPath;
+    
+    // Debug to file
+    std::ofstream dbg("/tmp/hyfocus_debug.log", std::ios::app);
+    dbg << "INIT: use_eww=" << g_fe_use_eww_notifications << " eww_path='" << g_fe_eww_config_path << "'" << std::endl;
+    dbg << "INIT: pEwwConfigPath=" << (void*)pEwwConfigPath << " value='" << (*pEwwConfigPath ? *pEwwConfigPath : "(null)") << "'" << std::endl;
+    dbg.close();
     
     FE_INFO("Config loaded: exit_challenge={}, use_eww={}, eww_path={}", 
             g_fe_exit_challenge_type, g_fe_use_eww_notifications, g_fe_eww_config_path);

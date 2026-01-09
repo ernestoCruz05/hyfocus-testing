@@ -8,6 +8,7 @@
  */
 #include "dispatchers.hpp"
 #include "eventhooks.hpp"
+#include "FocusTimer.hpp"
 #include <sstream>
 
 /**
@@ -66,10 +67,27 @@ void dispatch_startSession(std::string args) {
         return;
     }
     
+    // Parse args: "workspaces@duration" or just "workspaces"
+    // Example: "4,5@25" means workspaces 4,5 with 25 minute duration
+    std::string workspaceStr = args;
+    int sessionDuration = g_fe_work_interval; // Default from config
+    
+    size_t atPos = args.find('@');
+    if (atPos != std::string::npos) {
+        workspaceStr = args.substr(0, atPos);
+        std::string durationStr = args.substr(atPos + 1);
+        try {
+            sessionDuration = std::stoi(durationStr);
+            FE_INFO("Using duration from args: {} minutes", sessionDuration);
+        } catch (...) {
+            FE_WARN("Failed to parse duration '{}', using default", durationStr);
+        }
+    }
+    
     // Parse allowed workspaces
     std::vector<WORKSPACEID> allowedWorkspaces;
     
-    if (args.empty()) {
+    if (workspaceStr.empty()) {
         // Default to current workspace only
         auto focusState = Desktop::focusState();
         if (!focusState) {
@@ -83,7 +101,7 @@ void dispatch_startSession(std::string args) {
             }
         }
     } else {
-        allowedWorkspaces = parseWorkspaceList(args);
+        allowedWorkspaces = parseWorkspaceList(workspaceStr);
     }
     
     if (allowedWorkspaces.empty()) {
@@ -111,16 +129,34 @@ void dispatch_startSession(std::string args) {
     }
     
     // Configure and start the timer
-    g_fe_timer->configure(g_fe_total_duration, g_fe_work_interval, g_fe_break_interval);
+    // Pomodoro: work duration from user, break auto-calculated (1:5 ratio)
+    // e.g., 25 min work -> 5 min break, 50 min -> 10 min break
+    int breakDuration = std::max(1, sessionDuration / 5);
+    int totalDuration = sessionDuration + breakDuration; // One full Pomodoro cycle
+    g_fe_timer->configure(totalDuration, sessionDuration, breakDuration);
+    
+    FE_INFO("Pomodoro: {} min work, {} min break, {} min total", 
+            sessionDuration, breakDuration, totalDuration);
+    
+    // Store allowed workspaces for state file (need a copy for lambda)
+    static std::vector<WORKSPACEID> s_allowedWorkspaces;
+    s_allowedWorkspaces = allowedWorkspaces;
     
     // Set up callbacks
     g_fe_timer->setOnWorkStart([]() {
         g_fe_is_break_time = false;
+        writeStateFile(true, "working", g_fe_timer->getRemainingSeconds(), s_allowedWorkspaces);
+        // Only show flash if this is resuming from break (not initial start)
+        if (g_fe_timer->getElapsedSeconds() > 5) {
+            showFlash("Back to work!", 2000);
+        }
         showNotification("Focus time! Stay on task.", {0.2, 0.6, 1.0, 1.0});
     });
     
     g_fe_timer->setOnBreakStart([]() {
         g_fe_is_break_time = true;
+        writeStateFile(true, "break", g_fe_timer->getRemainingSeconds(), s_allowedWorkspaces);
+        showFlash("Take a break!", 2500);
         showNotification("Break time! Relax for a moment.", {0.2, 0.8, 0.2, 1.0});
     });
     
@@ -128,7 +164,23 @@ void dispatch_startSession(std::string args) {
         g_fe_is_session_active = false;
         g_fe_is_break_time = false;
         disableEnforcementHooks();
+        removeStateFile();
         showNotification("Focus session complete! Great work!", {1.0, 0.8, 0.0, 1.0}, 10000);
+        
+        // Close status widgets on all monitors if using EWW
+        if (g_fe_use_eww_notifications && !g_fe_eww_config_path.empty()) {
+            execAsync("eww -c " + g_fe_eww_config_path + " close hyfocus-status");
+            execAsync("eww -c " + g_fe_eww_config_path + " close hyfocus-status-2");
+        }
+    });
+    
+    // Set tick callback to update state file every second
+    g_fe_timer->setOnTick([](int remainingMins, TimerState state) {
+        std::string stateStr = (state == TimerState::Working) ? "working" :
+                               (state == TimerState::Break) ? "break" :
+                               (state == TimerState::Paused) ? "paused" : "inactive";
+        int remainingSecs = g_fe_timer->getRemainingSeconds();
+        writeStateFile(true, stateStr, remainingSecs, s_allowedWorkspaces);
     });
     
     // Start!
@@ -145,7 +197,16 @@ void dispatch_startSession(std::string args) {
             wsStr += std::to_string(id);
         }
         
+        // Write initial state file
+        writeStateFile(true, "working", sessionDuration * 60, allowedWorkspaces);
+        
         showNotification("Focus session started! Allowed workspaces: " + wsStr);
+        
+        // Open status widgets on ALL monitors if using EWW (each window separately)
+        if (g_fe_use_eww_notifications && !g_fe_eww_config_path.empty()) {
+            execAsync("eww -c " + g_fe_eww_config_path + " open hyfocus-status");
+            execAsync("eww -c " + g_fe_eww_config_path + " open hyfocus-status-2");
+        }
     } else {
         showError("Failed to start focus session!");
     }
@@ -203,6 +264,13 @@ void dispatch_stopSession(std::string args) {
     
     // Disable enforcement hooks
     disableEnforcementHooks();
+    
+    // Remove state file and close status widgets
+    removeStateFile();
+    if (g_fe_use_eww_notifications && !g_fe_eww_config_path.empty()) {
+        execAsync("eww -c " + g_fe_eww_config_path + " close hyfocus-status");
+        execAsync("eww -c " + g_fe_eww_config_path + " close hyfocus-status-2");
+    }
     
     int elapsed = g_fe_timer->getElapsedSeconds();
     showNotification("Focus session stopped. Total time: " + formatTime(elapsed));

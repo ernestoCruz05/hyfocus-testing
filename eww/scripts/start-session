@@ -16,6 +16,11 @@ fi
 # Convert space-separated to comma-separated for hyprctl
 WS_LIST=$(echo "$WORKSPACES" | tr ' ' ',')
 
+# Default duration if not set
+if [ -z "$DURATION" ]; then
+    DURATION=25
+fi
+
 # Close panels first
 $EWW_CMD close hyfocus-start &
 $EWW_CMD close hyfocus-backdrop &
@@ -23,7 +28,7 @@ $EWW_CMD close hyfocus-backdrop &
 # Reset selections
 $EWW_CMD update selected-workspaces="" &
 
-# Start the focus session
-hyprctl dispatch hyfocus:start "$WS_LIST,$DURATION" &
+# Start the focus session with format: workspaces@duration
+hyprctl dispatch hyfocus:start "${WS_LIST}@${DURATION}"
 
 echo "ok"

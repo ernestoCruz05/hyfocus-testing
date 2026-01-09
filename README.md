@@ -163,15 +163,15 @@ plugin = /path/to/libhyfocus.so
 plugin {
     hyfocus {
         # Timer settings (in minutes)
-        total_duration = 120          # Total session length (2 hours)
-        work_interval = 25            # Work block duration (Pomodoro standard)
-        break_interval = 5            # Break duration
+        # Break time is auto-calculated: work_time / 5
+        # Example: 25 min work -> 5 min break (standard Pomodoro)
+        #          50 min work -> 10 min break
 
         # Enforcement behavior
         enforce_during_break = false  # Allow any workspace during breaks
         
-        # App blocking
-        block_spawn = true            # Block launching new apps during focus
+        # App blocking (EXPERIMENTAL - see note below)
+        block_spawn = false           # Block launching new apps during focus
         spawn_whitelist = kitty,alacritty  # Apps allowed to launch (comma-separated)
 
         # Visual feedback
@@ -189,6 +189,10 @@ plugin {
     }
 }
 ```
+
+### Experimental Features
+
+**App Blocking (`block_spawn`)**: This feature is experimental and the whitelist is not fully functional yet. When enabled, it will block ALL app launches during focus sessions, ignoring the whitelist. **Keep `block_spawn = false` unless you want complete app blocking.** This will be improved in a future release.
 
 ### Exit Challenge Types
 
@@ -290,9 +294,9 @@ hyprctl dispatch hyfocus:stop
 
 The `FocusTimer` class manages Pomodoro-style intervals:
 
-1. **Work Phase**: Full workspace enforcement active
-2. **Break Phase**: Optionally relaxed enforcement
-3. **Repeat**: Cycles through work/break until total duration reached
+1. **Work Phase**: Full workspace enforcement active (user-specified duration)
+2. **Break Phase**: Auto-calculated (work_time / 5), e.g., 25 min → 5 min break
+3. **Visual Cues**: "Take a break!" flash when break starts, "Back to work!" when resuming
 
 ### Workspace Enforcement
 
@@ -364,7 +368,7 @@ The plugin uses atomic operations and mutexes for thread safety:
 
 ### Apps still launching during focus
 - Verify `block_spawn = true` in config
-- Check if the app is in `spawn_whitelist`
+- **Note**: The `spawn_whitelist` is not fully implemented yet. When `block_spawn = true`, ALL apps will be blocked regardless of whitelist.
 - Look for "Blocked spawn" in logs
 
 ### Can't stop session

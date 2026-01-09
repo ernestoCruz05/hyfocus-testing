@@ -166,17 +166,8 @@ void FocusTimer::timerLoop() {
         
         auto now = std::chrono::steady_clock::now();
         
-        // Check if total session time has elapsed
-        auto totalElapsed = std::chrono::duration_cast<std::chrono::minutes>(now - m_sessionStart);
-        if (totalElapsed >= m_totalDuration) {
-            m_state = TimerState::Completed;
-            lock.unlock();
-            invokeCallback(m_onSessionComplete);
-            FE_INFO("Focus session completed!");
-            break;
-        }
-        
-        // Check if current interval has elapsed
+        // Check if current interval has elapsed FIRST (before total check)
+        // This ensures we transition to break before session ends
         auto intervalElapsed = std::chrono::duration_cast<std::chrono::seconds>(now - m_intervalStart);
         auto currentInterval = (m_state.load() == TimerState::Working) 
                                 ? std::chrono::duration_cast<std::chrono::seconds>(m_workInterval)
@@ -187,6 +178,7 @@ void FocusTimer::timerLoop() {
                 m_completedWorkIntervals++;
                 transitionToBreak();
             } else {
+                // Break ended - start next work cycle
                 transitionToWork();
             }
             m_intervalStart = now;
